@@ -15,7 +15,6 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
     <style>
-        /* --- ESTILOS GENERALES --- */
         body { 
             margin: 0; background: #f0f4f8; 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
@@ -31,14 +30,12 @@
         }
         .hidden { display: none !important; }
 
-        /* --- GALERÍA --- */
+        /* GALERÍA */
         #gallery-screen { z-index: 20; overflow-y: auto; align-items: center; }
         .gallery-content { padding: 20px; width: 100%; max-width: 600px; box-sizing: border-box; }
-        
         .gallery-header-block { text-align: center; margin: 30px 0 20px 0; }
         .gallery-title { color: #d63384; font-size: 1.8rem; margin: 0; }
         .gallery-subtitle { color: #666; font-size: 0.9rem; margin-top: 5px; }
-        
         .gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; width: 100%; }
         .gallery-item {
             background: white; border-radius: 15px; overflow: hidden;
@@ -50,17 +47,15 @@
             width: 100%; height: 160px; object-fit: contain; background: white; 
             padding: 10px; box-sizing: border-box; border-bottom: 1px solid #eee;
         }
-        /* Marca de completado en galería */
         .check-badge {
             position: absolute; top: 10px; right: 10px;
             background: #4CAF50; color: white; border-radius: 50%;
             width: 25px; height: 25px; display: flex; justify-content: center; align-items: center;
             font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
-
         .thumb-title { padding: 15px; font-weight: bold; color: #444; text-align: center; }
 
-        /* --- JUEGO --- */
+        /* JUEGO */
         header {
             flex: 0 0 50px; background: white; display: flex;
             align-items: center; justify-content: space-between;
@@ -77,8 +72,7 @@
         }
         button.icon-btn:active { background: #d63384; color: white; }
         
-        /* Botón especial Bombilla */
-        #btn-hint { background: #fff3cd; color: #856404; display: none; } /* Oculto por defecto */
+        #btn-hint { background: #fff3cd; color: #856404; display: none; }
         #btn-hint.active { display: flex; animation: popIn 0.3s; }
 
         #progress-container { width: 100%; height: 4px; background: #e0e0e0; position: relative; z-index: 450; }
@@ -87,7 +81,7 @@
         #viewport { flex-grow: 1; position: relative; overflow: hidden; background: #e0e0e0; width: 100%; z-index: 1; }
         #zoom-layer { position: absolute; top: 0; left: 0; transform-origin: 0 0; box-shadow: 0 0 20px rgba(0,0,0,0.2); will-change: transform; }
         #shake-layer { width: 100%; height: 100%; }
-        canvas { display: block; image-rendering: pixelated; }
+        canvas { display: block; image-rendering: pixelated; } /* Pixelado para nitidez al zoom */
 
         .paleta-container {
             flex: 0 0 auto; background: white; width: 100%;
@@ -116,7 +110,6 @@
         }
         @keyframes popIn { from {transform: scale(0);} to {transform: scale(1);} }
 
-        /* --- MODAL VICTORIA --- */
         #victory-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.7); z-index: 2000;
@@ -294,13 +287,11 @@
         let imgLineas = new Image(), imgSolucion = new Image();
         let loadedCount = 0;
         
-        // Cache & Stats
         let cachedSolData = null, cachedLinData = null, totalPixelsToPaint = 0;
         let isVictoryShown = false;
 
         initDB().then(() => { renderGallery(); });
 
-        // --- GALERÍA ---
         async function renderGallery() {
             galleryGrid.innerHTML = '';
             let completedCount = 0;
@@ -313,7 +304,6 @@
                 const savedImg = await loadFromDB(nivel.id);
                 const imgSrc = savedImg ? savedImg : nivel.lineas;
                 
-                // Comprobamos si está completado usando localStorage (flag ligera)
                 const isDone = localStorage.getItem('completed_' + nivel.id) === 'true';
                 if(isDone) completedCount++;
 
@@ -327,11 +317,9 @@
                 el.onclick = () => loadLevel(i);
                 galleryGrid.appendChild(el);
             }
-            
             galleryCounter.innerText = `Completados: ${completedCount}/${niveles.length}`;
         }
 
-        // PULL TO REFRESH
         let ptrStartY = 0, ptrDist = 0; const ptrIndicator = document.getElementById('ptr-indicator');
         galleryScreen.addEventListener('touchstart', e => { if (galleryScreen.scrollTop === 0) ptrStartY = e.touches[0].clientY; }, {passive: true});
         galleryScreen.addEventListener('touchmove', e => {
@@ -347,7 +335,6 @@
             ptrStartY = 0; ptrDist = 0;
         });
 
-        // CARGA
         function loadLevel(index) {
             currentLevel = niveles[index];
             levelTitle.innerText = currentLevel.nombre;
@@ -367,23 +354,19 @@
         function checkLoad() { loadedCount++; if(loadedCount === 2) startGame(); }
 
         async function startGame() {
-            // 🚀 ALTA CALIDAD: 3000px
-            const MAX_DIM = 3000; 
-            let w = imgLineas.width, h = imgLineas.height;
-            if (w > MAX_DIM || h > MAX_DIM) {
-                const ratio = w / h;
-                if (w > h) { w = MAX_DIM; h = MAX_DIM / ratio; } else { h = MAX_DIM; w = MAX_DIM * ratio; }
-            }
-            w = Math.floor(w); h = Math.floor(h);
+            // 🚀 SIN LÍMITE DE RESOLUCIÓN PARA MÁXIMA CALIDAD
+            let w = imgLineas.width;
+            let h = imgLineas.height;
 
             canvas.width = w; canvas.height = h;
             hiddenCanvas.width = w; hiddenCanvas.height = h;
             linesCanvas.width = w; linesCanvas.height = h;
 
-            ctx.drawImage(imgLineas, 0, 0, w, h);
-            hCtx.drawImage(imgSolucion, 0, 0, w, h);
-            lCtx.drawImage(imgLineas, 0, 0, w, h);
+            ctx.drawImage(imgLineas, 0, 0);
+            hCtx.drawImage(imgSolucion, 0, 0);
+            lCtx.drawImage(imgLineas, 0, 0);
 
+            // OPTIMIZACIÓN: CACHE DE DATOS EN MEMORIA
             cachedSolData = hCtx.getImageData(0, 0, w, h).data;
             cachedLinData = lCtx.getImageData(0, 0, w, h).data;
             
@@ -393,7 +376,7 @@
             const savedData = await loadFromDB(currentLevel.id);
             if(savedData) {
                 const img = new Image();
-                img.onload = () => { ctx.drawImage(img, 0, 0, w, h); updateProgress(); };
+                img.onload = () => { ctx.drawImage(img, 0, 0); updateProgress(); };
                 img.src = savedData;
             } else { updateProgress(); }
 
@@ -404,10 +387,10 @@
             updateTransform();
         }
 
-        // 🧠 LÓGICA DE AYUDAS Y PROGRESO
         function updateProgress() {
             if(isVictoryShown) return;
             const w = canvas.width, h = canvas.height;
+            // Para el progreso, escaneamos rápido (saltando pixels) para no bloquear
             const currentData = ctx.getImageData(0,0,w,h).data;
             const solData = cachedSolData;
             let paintedCount = 0;
@@ -424,12 +407,12 @@
             const percentage = (paintedCount / totalPixelsToPaint) * 100;
             progressBar.style.width = percentage + '%';
 
-            // Lógica Bombilla
-            if(percentage > 99) {
-                btnHint.innerText = "✨"; // Modo Completar Todo
+            // 💡 AJUSTE UMBRALES AYUDA
+            if(percentage > 95) {
+                btnHint.innerText = "✨"; // Varita (Completa todo)
                 btnHint.classList.add('active');
-            } else if (percentage > 95) {
-                btnHint.innerText = "💡"; // Modo Ayuda Unitaria
+            } else if (percentage > 90) {
+                btnHint.innerText = "💡"; // Bombilla (Busca zona)
                 btnHint.classList.add('active');
             } else {
                 btnHint.classList.remove('active');
@@ -438,18 +421,18 @@
             if(percentage > 99.9) triggerVictory();
         }
 
-        // ACCIÓN DE LA BOMBILLA
+        // ACCIÓN DE LA BOMBILLA INTELIGENTE
         btnHint.onclick = () => {
             const w = canvas.width, h = canvas.height;
-            const currentData = ctx.getImageData(0,0,w,h); // Objeto completo para editar
+            const currentData = ctx.getImageData(0,0,w,h); 
             const dat = currentData.data;
             const solData = cachedSolData;
             const percentage = parseFloat(progressBar.style.width);
 
-            if(percentage > 99) {
-                // AUTO-COMPLETAR (Magia Final)
+            if(percentage > 95) {
+                // ✨ VARITA MÁGICA: Completa todo lo restante
                 for(let i=0; i<solData.length; i+=4) {
-                    if(solData[i+3] > 0) { // Si es parte del dibujo
+                    if(solData[i+3] > 0) {
                         dat[i] = solData[i];
                         dat[i+1] = solData[i+1];
                         dat[i+2] = solData[i+2];
@@ -460,19 +443,20 @@
                 saveToDB(currentLevel.id, canvas.toDataURL());
                 updateProgress();
             } else {
-                // AYUDA UNITARIA (Buscar 1 hueco)
-                // Escaneamos buscando un pixel sin pintar
-                for(let i=0; i<solData.length; i+=40) { // Saltos para ir rápido
-                    // Si tiene color en solucion pero no en actual
-                    if(solData[i+3] > 0 && 
-                       (Math.abs(dat[i]-solData[i])>2 || Math.abs(dat[i+1]-solData[i+1])>2)) {
+                // 💡 BOMBILLA: Busca una ZONA sin pintar y la rellena
+                // Escaneamos con saltos pequeños para asegurar encontrar áreas
+                const scanStep = 4 * 5; // Mira cada 5 píxeles para velocidad
+                
+                for(let i=0; i<solData.length; i+=scanStep) {
+                    // Si hay color en solución pero no en actual
+                    if(solData[i+3] > 0 && (Math.abs(dat[i]-solData[i])>2 || Math.abs(dat[i+1]-solData[i+1])>2)) {
                         
-                        // Encontrado! Rellenamos esa área
+                        // Encontrado punto no pintado
                         const pixelIdx = i / 4;
                         const y = Math.floor(pixelIdx / w);
                         const x = pixelIdx % w;
                         
-                        // Identificar color
+                        // Buscamos qué color le toca
                         let best=-1, minD=999999;
                         coloresRGB.forEach((c, idx) => {
                             const d = Math.abs(solData[i]-c.r) + Math.abs(solData[i+1]-c.g) + Math.abs(solData[i+2]-c.b);
@@ -480,16 +464,17 @@
                         });
                         
                         if(best !== -1) {
+                            // Rellenar la zona completa (Flood Fill)
                             fillArea(x, y, coloresRGB[best]);
                             saveToDB(currentLevel.id, canvas.toDataURL());
                             updateProgress();
                             
-                            // Centrar vista en la ayuda
+                            // Centrar vista en la zona encontrada
                             pX = (viewport.clientWidth/2) - (x * scale);
                             pY = (viewport.clientHeight/2) - (y * scale);
                             updateTransform();
                         }
-                        break; // Solo una ayuda por click
+                        break; // Solo una zona por click
                     }
                 }
             }
@@ -497,13 +482,12 @@
 
         function triggerVictory() {
             isVictoryShown = true;
-            localStorage.setItem('completed_' + currentLevel.id, 'true'); // Guardar flag completado
+            localStorage.setItem('completed_' + currentLevel.id, 'true');
             confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
             setTimeout(() => { victoryModal.classList.remove('hidden'); }, 800);
         }
         function cerrarVictoria() { victoryModal.classList.add('hidden'); }
 
-        // GENERAR PALETA
         function generarPaleta(coloresHex) {
             paletaDiv.innerHTML = ''; selectedColorIndex = 0;
             coloresHex.forEach((c, i) => {
@@ -526,7 +510,6 @@
             });
         }
 
-        // --- BOTONES ---
         document.getElementById('btn-back').onclick = async () => {
             if(currentLevel) await saveToDB(currentLevel.id, canvas.toDataURL());
             gameScreen.classList.add('hidden'); galleryScreen.classList.remove('hidden');
@@ -536,7 +519,7 @@
             if(confirm('¿Reiniciar foto?')) {
                 deleteFromDB(currentLevel.id);
                 localStorage.removeItem('completed_' + currentLevel.id);
-                ctx.drawImage(imgLineas, 0, 0, canvas.width, canvas.height); 
+                ctx.drawImage(imgLineas, 0, 0);
                 updateProgress();
             }
         };
@@ -548,12 +531,11 @@
         };
         const btnSol = document.getElementById('btn-solucion');
         let backup;
-        const showS = (e) => { e.preventDefault(); if(backup)return; backup=ctx.getImageData(0,0,canvas.width,canvas.height); ctx.drawImage(imgSolucion,0,0,canvas.width,canvas.height); };
+        const showS = (e) => { e.preventDefault(); if(backup)return; backup=ctx.getImageData(0,0,canvas.width,canvas.height); ctx.drawImage(imgSolucion,0,0); };
         const hideS = (e) => { if(e)e.preventDefault(); if(!backup)return; ctx.putImageData(backup,0,0); backup=null; };
         btnSol.addEventListener('touchstart', showS); btnSol.addEventListener('touchend', hideS);
         btnSol.addEventListener('mousedown', showS); window.addEventListener('mouseup', hideS);
 
-        // --- ZOOM & INPUT ---
         function updateTransform() { zoomLayer.style.transform = `translate(${pX}px, ${pY}px) scale(${scale})`; }
         let isDrag=false, isPinch=false, hasMov=false, lX=0, lY=0, initDist=0, lZoomT=0;
 
@@ -606,6 +588,7 @@
         }
 
         function tryPaint(x, y) {
+            // OPTIMIZADO: Lectura directa desde Array (RAM), no desde Canvas (GPU)
             const idx = (y * canvas.width + x) * 4;
             const pR = cachedSolData[idx], pG = cachedSolData[idx+1], pB = cachedSolData[idx+2], pA = cachedSolData[idx+3];
             if(pA === 0) return; 
