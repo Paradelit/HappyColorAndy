@@ -299,10 +299,33 @@
         
         // Cache & Stats
         let cachedSolData = null, totalPixelsToPaint = 0;
-        let wallMap = null; // 🚀 OPTIMIZACIÓN V23: Mapa de paredes ligero (0/1)
+        let wallMap = null;
         let isVictoryShown = false;
+        let progressUpdateQueued = false; // 🚀 Debounce progress
+        let imageCache = {}; // 🚀 Cache de imágenes precargadas
 
-        initDB().then(() => { renderGallery(); });
+        initDB().then(() => { 
+            preloadAllImages(); // 🚀 Precarga todas las imágenes al inicio
+            renderGallery(); 
+        });
+
+        // 🚀 OPTIMIZACIÓN: Precarga de imágenes
+        function preloadAllImages() {
+            niveles.forEach(nivel => {
+                // Precarga líneas
+                if (!imageCache[nivel.lineas]) {
+                    const imgL = new Image();
+                    imgL.src = nivel.lineas;
+                    imageCache[nivel.lineas] = imgL;
+                }
+                // Precarga solución
+                if (!imageCache[nivel.solucion]) {
+                    const imgS = new Image();
+                    imgS.src = nivel.solucion;
+                    imageCache[nivel.solucion] = imgS;
+                }
+            });
+        }
 
         async function renderGallery() {
             galleryGrid.innerHTML = '';
@@ -356,17 +379,38 @@
             }));
             
             galleryScreen.classList.add('hidden'); gameScreen.classList.remove('hidden');
-            loadingOverlay.classList.remove('hidden'); // Mostrar loading
+            loadingOverlay.classList.remove('hidden');
             
             isVictoryShown = false; progressBar.style.width = '0%'; btnHint.className = ''; 
-            loadedCount = 0; ctx.clearRect(0, 0, canvas.width, canvas.height); 
-            const ts = Date.now();
-            imgLineas.src = currentLevel.lineas + '?' + ts;
-            imgSolucion.src = currentLevel.solucion + '?' + ts;
+            loadedCount = 0; ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 🚀 OPTIMIZACIÓN: Usar imágenes del cache si están disponibles
+            if (imageCache[currentLevel.lineas] && imageCache[currentLevel.lineas].complete) {
+                imgLineas = imageCache[currentLevel.lineas];
+                loadedCount++;
+            } else {
+                imgLineas = new Image();
+                imgLineas.onload = checkLoad;
+                imgLineas.src = currentLevel.lineas + '?' + Date.now();
+            }
+            
+            if (imageCache[currentLevel.solucion] && imageCache[currentLevel.solucion].complete) {
+                imgSolucion = imageCache[currentLevel.solucion];
+                loadedCount++;
+            } else {
+                imgSolucion = new Image();
+                imgSolucion.onload = checkLoad;
+                imgSolucion.src = currentLevel.solucion + '?' + Date.now();
+            }
+            
+            if (loadedCount === 2) setTimeout(startGame, 50);
         }
 
         imgLineas.onload = checkLoad; imgSolucion.onload = checkLoad;
-        function checkLoad() { loadedCount++; if(loadedCount === 2) setTimeout(startGame, 100); }
+        function checkLoad() { 
+            loadedCount++; 
+            if(loadedCount === 2) setTimeout(startGame, 50);
+        }
 
         async function startGame() {
             // MÁXIMA CALIDAD: Usamos el tamaño original de la imagen
@@ -381,7 +425,7 @@
             hCtx.drawImage(imgSolucion, 0, 0);
             lCtx.drawImage(imgLineas, 0, 0);
 
-            // 🚀 OPTIMIZACIÓN V23: PRE-CALCULAR MUROS
+            // 🚀 PRE-CALCULAR MUROS
             cachedSolData = hCtx.getImageData(0, 0, w, h).data;
             const linData = lCtx.getImageData(0, 0, w, h).data;
             
@@ -418,20 +462,30 @@
             updateTransform();
         }
 
+        // 🚀 OPTIMIZACIÓN: Debounce para updateProgress
+        function queueProgressUpdate() {
+            if (progressUpdateQueued) return;
+            progressUpdateQueued = true;
+            requestAnimationFrame(() => {
+                updateProgress();
+                progressUpdateQueued = false;
+            });
+        }
+
         function updateProgress() {
             if(isVictoryShown) return;
             const w = canvas.width, h = canvas.height;
-            // Escaneo optimizado con pasos
             const currentData = ctx.getImageData(0,0,w,h).data;
             const solData = cachedSolData;
             let paintedCount = 0;
             
-            // Muestreo estadístico rápido (miramos 1 de cada 10 pixeles) para velocidad UI
-            const step = 10; 
+            // 🚀 Muestreo más agresivo (1 de cada 20) para mejor rendimiento
+            const step = 20; 
             let sampleTotal = 0;
             
             for(let i=0; i<solData.length; i+=(4*step)) {
-                if(solData[i+3] > 0 && wallMap[i/4] === 0) {
+                const pixelIdx = i/4;
+                if(solData[i+3] > 0 && wallMap[pixelIdx] === 0) {
                     sampleTotal++;
                     if(Math.abs(currentData[i] - solData[i]) <= 2 &&
                        Math.abs(currentData[i+1] - solData[i+1]) <= 2 &&
@@ -441,15 +495,14 @@
                 }
             }
 
-            const percentage = (paintedCount / sampleTotal) * 100;
+            const percentage = sampleTotal > 0 ? (paintedCount / sampleTotal) * 100 : 0;
             progressBar.style.width = percentage + '%';
 
-            // AJUSTE UMBRALES
             if(percentage > 95) {
-                btnHint.innerText = "✨"; // Varita (Completa todo)
+                btnHint.innerText = "✨";
                 btnHint.classList.add('active');
             } else if (percentage > 90) {
-                btnHint.innerText = "💡"; // Bombilla (Busca zona)
+                btnHint.innerText = "💡";
                 btnHint.classList.add('active');
             } else {
                 btnHint.classList.remove('active');
@@ -474,7 +527,7 @@
                 }
                 ctx.putImageData(currentData, 0, 0);
                 saveToDB(currentLevel.id, canvas.toDataURL());
-                updateProgress();
+                queueProgressUpdate();
             } else {
                 // BOMBILLA (Busca ZONA)
                 const scanStep = 4 * 10; 
@@ -495,7 +548,7 @@
                         if(best !== -1) {
                             fillArea(x, y, coloresRGB[best]);
                             saveToDB(currentLevel.id, canvas.toDataURL());
-                            updateProgress();
+                            queueProgressUpdate();
                             pX = (viewport.clientWidth/2) - (x * scale);
                             pY = (viewport.clientHeight/2) - (y * scale);
                             updateTransform();
@@ -616,7 +669,7 @@
             const idx = (y * canvas.width + x) * 4;
             const pR = cachedSolData[idx], pG = cachedSolData[idx+1], pB = cachedSolData[idx+2], pA = cachedSolData[idx+3];
             
-            // Check Muro (Optimizado V23)
+            // Check Muro
             if(wallMap[y*canvas.width + x] === 1 || pA === 0) return;
 
             let best=-1, minD=999999;
@@ -628,7 +681,7 @@
             if(best === selectedColorIndex) {
                 fillArea(x, y, coloresRGB[best]);
                 saveToDB(currentLevel.id, canvas.toDataURL());
-                updateProgress(); 
+                queueProgressUpdate();
             } else {
                 if(navigator.vibrate) navigator.vibrate(200);
                 shakeLayer.classList.add('shake');
@@ -636,29 +689,34 @@
             }
         }
 
+        // 🚀 OPTIMIZACIÓN: fillArea con mejor performance
         function fillArea(sx, sy, col) {
             const w = canvas.width, h = canvas.height;
             const vis = ctx.getImageData(0,0,w,h);
             const dat = vis.data;
             const sol = cachedSolData;
-            // No necesitamos leer líneas aquí, usamos wallMap
             
-            const q = [[sx, sy]], visSet = new Uint8Array(w*h);
+            // Usar array nativo en lugar de Uint8Array para mejor performance en móviles
+            const visSet = new Array(w*h).fill(0);
+            const q = [[sx, sy]];
             const tr=col.r, tg=col.g, tb=col.b;
 
-            while(q.length) {
-                const [cx, cy] = q.pop();
+            let qIdx = 0; // Índice de lectura (evita shift costoso)
+            
+            while(qIdx < q.length) {
+                const [cx, cy] = q[qIdx++];
                 const idx = cy*w + cx;
+                
                 if(visSet[idx]) continue;
                 visSet[idx] = 1;
 
-                // 🚀 CHECK TURBO: Muro precalculado
                 if(wallMap[idx] === 1) continue;
 
-                // Check solución (Tolerancia 1 para evitar fugas)
                 const i = idx*4;
                 if(Math.abs(sol[i]-tr)<=1 && Math.abs(sol[i+1]-tg)<=1 && Math.abs(sol[i+2]-tb)<=1) {
                     dat[i]=tr; dat[i+1]=tg; dat[i+2]=tb; dat[i+3]=255;
+                    
+                    // Añadir vecinos de forma más eficiente
                     if(cx+1<w) q.push([cx+1, cy]);
                     if(cx-1>=0) q.push([cx-1, cy]);
                     if(cy+1<h) q.push([cx, cy+1]);
