@@ -15,88 +15,139 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
     <style>
-        body { margin: 0; background: #f0f4f8; font-family: sans-serif; height: 100dvh; width: 100vw; overflow: hidden; display: flex; flex-direction: column; user-select: none; -webkit-user-select: none; }
-        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; background: #f0f4f8; transition: transform 0.3s ease; z-index: 10; }
+        body { 
+            margin: 0; background: #f0f4f8; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            height: 100dvh; width: 100vw; overflow: hidden; 
+            display: flex; flex-direction: column;
+            user-select: none; -webkit-user-select: none;
+        }
+
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; background: #f0f4f8;
+            transition: transform 0.3s ease; z-index: 10;
+        }
         .hidden { display: none !important; }
 
         /* GALERÍA */
-        #gallery-screen { z-index: 20; overflow-y: auto; }
-        .gallery-content { padding: 20px; max-width: 600px; margin: 0 auto; }
+        #gallery-screen { z-index: 20; overflow-y: auto; align-items: center; }
+        .gallery-content { padding: 20px; width: 100%; max-width: 600px; box-sizing: border-box; }
         .gallery-header-block { text-align: center; margin: 30px 0 20px 0; }
         .gallery-title { color: #d63384; font-size: 1.8rem; margin: 0; }
         .gallery-subtitle { color: #666; font-size: 0.9rem; margin-top: 5px; }
-        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 20px; }
-        .gallery-item { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1); position: relative; }
-        .thumb-preview { width: 100%; height: 160px; object-fit: contain; background: white; padding: 10px; box-sizing: border-box; }
-        .check-badge { position: absolute; top: 10px; right: 10px; background: #4CAF50; color: white; border-radius: 50%; width: 25px; height: 25px; display: flex; justify-content: center; align-items: center; font-size: 14px; }
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; width: 100%; }
+        .gallery-item {
+            background: white; border-radius: 15px; overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); cursor: pointer;
+            display: flex; flex-direction: column; position: relative;
+        }
+        .gallery-item:active { transform: scale(0.98); }
+        .thumb-preview { 
+            width: 100%; height: 160px; object-fit: contain; background: white; 
+            padding: 10px; box-sizing: border-box; border-bottom: 1px solid #eee;
+        }
+        .check-badge {
+            position: absolute; top: 10px; right: 10px;
+            background: #4CAF50; color: white; border-radius: 50%;
+            width: 25px; height: 25px; display: flex; justify-content: center; align-items: center;
+            font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
         .thumb-title { padding: 15px; font-weight: bold; color: #444; text-align: center; }
 
         /* JUEGO */
-        header { flex: 0 0 50px; background: white; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); z-index: 500; }
+        header {
+            flex: 0 0 50px; background: white; display: flex;
+            align-items: center; justify-content: space-between;
+            padding: 0 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            z-index: 500; position: relative;
+        }
         h1 { color: #d63384; font-size: 1rem; margin: 0 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-grow: 1; text-align: center; }
         .header-btns { display: flex; gap: 8px; }
-        button.icon-btn { background: #eee; border: none; border-radius: 50%; width: 35px; height: 35px; font-size: 18px; display: flex; justify-content: center; align-items: center; }
+
+        button.icon-btn {
+            background: #eee; border: none; border-radius: 50%;
+            width: 35px; height: 35px; font-size: 18px; cursor: pointer;
+            display: flex; justify-content: center; align-items: center;
+        }
         button.icon-btn:active { background: #d63384; color: white; }
+        
         #btn-hint { background: #fff3cd; color: #856404; display: none; }
         #btn-hint.active { display: flex; animation: popIn 0.3s; }
 
         #progress-container { width: 100%; height: 4px; background: #e0e0e0; position: relative; z-index: 450; }
         #progress-bar { height: 100%; background: #d63384; width: 0%; transition: width 0.3s ease; }
 
-        /* VIEWPORT OPTIMIZADO */
         #viewport { flex-grow: 1; position: relative; overflow: hidden; background: #e0e0e0; width: 100%; z-index: 1; }
-        
-        #zoom-layer { 
-            position: absolute; top: 0; left: 0; 
-            transform-origin: 0 0; 
-            box-shadow: 0 0 20px rgba(0,0,0,0.2); 
-            will-change: transform; /* Aceleración GPU */
-        }
-        
-        #shake-layer { position: relative; width: 100%; height: 100%; }
+        #zoom-layer { position: absolute; top: 0; left: 0; transform-origin: 0 0; box-shadow: 0 0 20px rgba(0,0,0,0.2); will-change: transform; }
+        #shake-layer { width: 100%; height: 100%; }
+        canvas { display: block; image-rendering: pixelated; }
 
-        /* ARQUITECTURA SÁNDWICH */
-        /* 1. Capa de Pintura (Canvas): Baja resolución, estirada para cubrir todo */
-        #lienzo { 
-            display: block; 
-            width: 100%; height: 100%; /* Se estira CSS */
-            image-rendering: pixelated; /* Evita borrosidad al estirar */
+        .paleta-container {
+            flex: 0 0 auto; background: white; width: 100%;
+            display: flex; align-items: center;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.05);
+            z-index: 1000; overflow-x: auto;
+            padding-top: 10px; padding-bottom: max(25px, env(safe-area-inset-bottom));
         }
-
-        /* 2. Capa de Líneas (Imagen HD): Se pone encima */
-        #lines-overlay {
-            position: absolute; top: 0; left: 0;
-            width: 100%; height: 100%;
-            pointer-events: none; /* Los clicks atraviesan esta capa */
-            mix-blend-mode: multiply; /* EL TRUCO: Blanco transparente, Negro opaco */
-            display: block;
-        }
-
-        .paleta-container { flex: 0 0 auto; background: white; width: 100%; display: flex; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.05); z-index: 1000; overflow-x: auto; padding: 10px 0 25px 0; }
         .paleta { display: flex; gap: 12px; padding: 0 15px; min-width: max-content; }
-        .color-btn { width: 50px; height: 50px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.2); position: relative; flex-shrink: 0; }
-        .color-number { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-weight: bold; font-size: 18px; text-shadow: 0 1px 2px rgba(0,0,0,0.8); pointer-events: none; }
+        .color-btn { 
+            width: 50px; height: 50px; border-radius: 50%; border: 3px solid #fff; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2); position: relative; flex-shrink: 0;
+        }
+        .color-number {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #fff; font-weight: bold; font-size: 18px; text-shadow: 0 1px 2px rgba(0,0,0,0.8); pointer-events: none;
+        }
         .color-btn.light .color-number { color: #333; text-shadow: none; }
         .selected { border-color: #333; transform: scale(1.1); box-shadow: 0 4px 8px rgba(0,0,0,0.3); }
 
         .shake { animation: shake 0.3s; }
-        @keyframes shake { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-5px, 0); } 75% { transform: translate(5px, 0); } }
+        @keyframes shake {
+            0%, 100% { transform: translate(0, 0); }
+            25% { transform: translate(-5px, 0); }
+            75% { transform: translate(5px, 0); }
+        }
         @keyframes popIn { from {transform: scale(0);} to {transform: scale(1);} }
 
-        #victory-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000; display: flex; justify-content: center; align-items: center; }
-        .victory-content { background: white; padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: popIn 0.5s; }
-        .victory-btn { background: #d63384; color: white; border: none; padding: 10px 25px; font-size: 1rem; border-radius: 25px; margin-top: 15px; }
+        #victory-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 2000;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .victory-content {
+            background: white; padding: 30px; border-radius: 20px; text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .victory-content h2 { color: #d63384; margin: 0 0 10px 0; }
+        .victory-content p { color: #555; margin: 0 0 20px 0; }
+        .victory-btn { 
+            background: #d63384; color: white; border: none; padding: 10px 25px; 
+            font-size: 1rem; border-radius: 25px; cursor: pointer; 
+        }
         
-        #loading-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 2000; display: flex; justify-content: center; align-items: center; font-weight: bold; color: #666; font-size: 1.2rem; }
+        #ptr-indicator {
+            height: 0; overflow: hidden; display: flex; justify-content: center; align-items: center;
+            background: #f0f4f8; color: #d63384; font-weight: bold; transition: height 0.2s;
+        }
+        
+        /* Loading Overlay */
+        #loading-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.8); z-index: 1000;
+            display: flex; justify-content: center; align-items: center;
+            font-weight: bold; color: #666;
+        }
     </style>
 </head>
 <body>
 
     <div id="gallery-screen" class="screen">
+        <div id="ptr-indicator">⬇️ Suelta para recargar</div>
         <div class="gallery-content">
             <div class="gallery-header-block">
                 <h1 class="gallery-title">🎨 Recuerdos</h1>
-                <div class="gallery-subtitle" id="gallery-counter">Cargando...</div>
+                <div class="gallery-subtitle" id="gallery-counter">Completados: 0/2</div>
             </div>
             <div class="gallery-grid" id="gallery-grid"></div>
         </div>
@@ -104,23 +155,22 @@
 
     <div id="game-screen" class="screen hidden">
         <header>
-            <button id="btn-back" class="icon-btn">⬅️</button>
+            <button id="btn-back" class="icon-btn" title="Volver">⬅️</button>
             <h1>Foto</h1>
             <div class="header-btns">
-                <button id="btn-hint" class="icon-btn">💡</button>
-                <button id="btn-download" class="icon-btn">💾</button>
-                <button id="btn-reset" class="icon-btn">🗑️</button>
-                <button id="btn-solucion" class="icon-btn">👁️</button>
+                <button id="btn-hint" class="icon-btn" title="Ayuda mágica">💡</button>
+                <button id="btn-download" class="icon-btn" title="Descargar imagen">💾</button>
+                <button id="btn-reset" class="icon-btn" title="Borrar">🗑️</button>
+                <button id="btn-solucion" class="icon-btn" title="Ver">👁️</button>
             </div>
         </header>
         <div id="progress-container"><div id="progress-bar"></div></div>
         
         <div id="viewport">
-            <div id="loading-overlay" class="hidden">Preparando lienzo...</div>
+            <div id="loading-overlay" class="hidden">Cargando foto...</div>
             <div id="zoom-layer">
                 <div id="shake-layer">
                     <canvas id="lienzo"></canvas>
-                    <img id="lines-overlay" src="" alt="">
                 </div>
             </div>
         </div>
@@ -134,12 +184,17 @@
         <div class="victory-content">
             <h2>¡Felicidades! 🎉</h2>
             <p>Has completado este recuerdo.</p>
-            <button class="victory-btn" onclick="document.getElementById('victory-modal').classList.add('hidden')">¡Genial!</button>
+            <button class="victory-btn" onclick="cerrarVictoria()">¡Genial!</button>
         </div>
     </div>
 
+    <canvas id="hidden-canvas" style="display:none;"></canvas>
+    <canvas id="lines-canvas" style="display:none;"></canvas>
+
     <script>
-        // CONFIGURACIÓN (TUS COLORES)
+        // ==========================================
+        // 🛠️ CONFIGURACIÓN 🛠️
+        // ==========================================
         const niveles = [
             {
                 id: 'foto1',
@@ -180,362 +235,342 @@
         ];
 
         // DB SETUP
-        const DB_NAME = 'HappyAndyDB'; const DB_VERSION = 1; let db;
-        function initDB() { return new Promise(r => { const req = indexedDB.open(DB_NAME, DB_VERSION); req.onupgradeneeded = e => { db = e.target.result; if(!db.objectStoreNames.contains('saves')) db.createObjectStore('saves', { keyPath: 'id' }); }; req.onsuccess = e => { db = e.target.result; r(db); }; req.onerror = () => r(null); }); }
-        function saveToDB(id, data) { if(!db) return; const tx = db.transaction('saves', 'readwrite'); tx.objectStore('saves').put({ id: id, data: data }); }
-        function loadFromDB(id) { return new Promise(r => { if(!db) return r(null); const tx = db.transaction('saves', 'readonly'); const req = tx.objectStore('saves').get(id); req.onsuccess = () => r(req.result ? req.result.data : null); req.onerror = () => r(null); }); }
-        function deleteFromDB(id) { if(!db) return; const tx = db.transaction('saves', 'readwrite'); tx.objectStore('saves').delete(id); }
+        const DB_NAME = 'HappyAndyDB';
+        const DB_VERSION = 1;
+        let db;
 
-        // VARS GLOBALES
+        function initDB() {
+            return new Promise((resolve) => {
+                const req = indexedDB.open(DB_NAME, DB_VERSION);
+                req.onupgradeneeded = e => {
+                    db = e.target.result;
+                    if (!db.objectStoreNames.contains('saves')) db.createObjectStore('saves', { keyPath: 'id' });
+                };
+                req.onsuccess = e => { db = e.target.result; resolve(db); };
+                req.onerror = () => resolve(null);
+            });
+        }
+        function saveToDB(id, data) {
+            if(!db) return;
+            const tx = db.transaction('saves', 'readwrite');
+            tx.objectStore('saves').put({ id: id, data: data });
+        }
+        function loadFromDB(id) {
+            return new Promise((resolve) => {
+                if(!db) return resolve(null);
+                const tx = db.transaction('saves', 'readonly');
+                const req = tx.objectStore('saves').get(id);
+                req.onsuccess = () => resolve(req.result ? req.result.data : null);
+                req.onerror = () => resolve(null);
+            });
+        }
+        function deleteFromDB(id) {
+            if(!db) return;
+            const tx = db.transaction('saves', 'readwrite');
+            tx.objectStore('saves').delete(id);
+        }
+
+        // ELEMENTOS
+        const galleryGrid = document.getElementById('gallery-grid');
+        const galleryScreen = document.getElementById('gallery-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const levelTitle = document.querySelector('header h1');
+        const paletaDiv = document.getElementById('paleta');
+        const progressBar = document.getElementById('progress-bar');
+        const victoryModal = document.getElementById('victory-modal');
+        const btnHint = document.getElementById('btn-hint');
+        const galleryCounter = document.getElementById('gallery-counter');
+        const loadingOverlay = document.getElementById('loading-overlay');
+
         const canvas = document.getElementById('lienzo');
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        const linesOverlay = document.getElementById('lines-overlay');
+        const hiddenCanvas = document.createElement('canvas');
+        const hCtx = hiddenCanvas.getContext('2d', { willReadFrequently: true });
+        const linesCanvas = document.createElement('canvas');
+        const lCtx = linesCanvas.getContext('2d', { willReadFrequently: true });
         const zoomLayer = document.getElementById('zoom-layer');
         const shakeLayer = document.getElementById('shake-layer');
-        const loadingOverlay = document.getElementById('loading-overlay');
-        const btnHint = document.getElementById('btn-hint');
-        const progressBar = document.getElementById('progress-bar');
-        
+        const viewport = document.getElementById('viewport');
+
         let currentLevel = null, coloresRGB = [], selectedColorIndex = 0;
         let scale = 1, pX = 0, pY = 0;
-        let logicWidth = 0, logicHeight = 0; // Dimensiones optimizadas
+        let imgLineas = new Image(), imgSolucion = new Image();
+        let loadedCount = 0;
         
-        // Memoria para cálculos
-        let solutionData = null; // Uint8ClampedArray con la solución (escalada)
-        let wallMap = null;      // Uint8Array con los muros (0 o 1)
-        let totalPixels = 0;
+        // Cache & Stats
+        let cachedSolData = null, totalPixelsToPaint = 0;
+        let wallMap = null; // 🚀 OPTIMIZACIÓN V23: Mapa de paredes ligero (0/1)
+        let isVictoryShown = false;
 
-        initDB().then(renderGallery);
+        initDB().then(() => { renderGallery(); });
 
-        // GALERÍA
         async function renderGallery() {
-            const grid = document.getElementById('gallery-grid');
-            grid.innerHTML = '';
-            let completed = 0;
+            galleryGrid.innerHTML = '';
+            let completedCount = 0;
+
             for(let i=0; i<niveles.length; i++) {
-                const n = niveles[i];
+                const nivel = niveles[i];
                 const el = document.createElement('div');
                 el.className = 'gallery-item';
-                const saved = await loadFromDB(n.id);
-                // Si hay save, usamos el save como preview (aunque sea low res, se ve pequeño)
-                // Si no, la linea original
-                const src = saved ? saved : n.lineas;
-                const isDone = localStorage.getItem('done_'+n.id) === 'true';
-                if(isDone) completed++;
-                el.innerHTML = `<img src="${src}" class="thumb-preview">${isDone?'<div class="check-badge">✓</div>':''}<div class="thumb-title">${n.nombre}</div>`;
+                
+                const savedImg = await loadFromDB(nivel.id);
+                const imgSrc = savedImg ? savedImg : nivel.lineas;
+                
+                const isDone = localStorage.getItem('completed_' + nivel.id) === 'true';
+                if(isDone) completedCount++;
+
+                let badgeHtml = isDone ? '<div class="check-badge">✓</div>' : '';
+
+                el.innerHTML = `
+                    <img src="${imgSrc}" class="thumb-preview" alt="${nivel.nombre}">
+                    ${badgeHtml}
+                    <div class="thumb-title">${nivel.nombre}</div>
+                `;
                 el.onclick = () => loadLevel(i);
-                grid.appendChild(el);
+                galleryGrid.appendChild(el);
             }
-            document.getElementById('gallery-counter').innerText = `Completados: ${completed}/${niveles.length}`;
+            galleryCounter.innerText = `Completados: ${completedCount}/${niveles.length}`;
         }
 
-        // CARGA INTELIGENTE
-        function loadLevel(idx) {
-            currentLevel = niveles[idx];
-            document.querySelector('header h1').innerText = currentLevel.nombre;
-            document.getElementById('gallery-screen').classList.add('hidden');
-            document.getElementById('game-screen').classList.remove('hidden');
-            loadingOverlay.classList.remove('hidden');
-            
-            // Generar paleta
-            const paletaDiv = document.getElementById('paleta');
-            paletaDiv.innerHTML = '';
-            coloresRGB = currentLevel.colores.map((hex, i) => {
-                const btn = document.createElement('div');
-                btn.className = 'color-btn';
-                btn.style.backgroundColor = hex;
-                const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-                if((r*0.299+g*0.587+b*0.114)>186) btn.classList.add('light');
-                btn.innerHTML = `<span class="color-number">${i+1}</span>`;
-                if(i===0) { btn.classList.add('selected'); selectedColorIndex = 0; }
-                const act = (e) => { e.preventDefault(); e.stopPropagation(); document.querySelectorAll('.color-btn').forEach(b=>b.classList.remove('selected')); btn.classList.add('selected'); selectedColorIndex = i; };
-                btn.addEventListener('touchstart', act, {passive:false});
-                btn.onclick = act;
-                paletaDiv.appendChild(btn);
-                return {r, g, b};
-            });
+        let ptrStartY = 0, ptrDist = 0; const ptrIndicator = document.getElementById('ptr-indicator');
+        galleryScreen.addEventListener('touchstart', e => { if (galleryScreen.scrollTop === 0) ptrStartY = e.touches[0].clientY; }, {passive: true});
+        galleryScreen.addEventListener('touchmove', e => {
+            const y = e.touches[0].clientY;
+            if (ptrStartY && y > ptrStartY && galleryScreen.scrollTop === 0) {
+                ptrDist = y - ptrStartY;
+                if (ptrDist > 60) ptrIndicator.style.height = '50px';
+            }
+        }, {passive: true});
+        galleryScreen.addEventListener('touchend', () => {
+            if (ptrDist > 60 && galleryScreen.scrollTop === 0) { ptrIndicator.innerText = "🔄 Cargando..."; location.reload(); }
+            else { ptrIndicator.style.height = '0px'; }
+            ptrStartY = 0; ptrDist = 0;
+        });
 
-            // Iniciar proceso de carga asíncrono para no bloquear UI
-            setTimeout(initGameLogic, 100);
+        function loadLevel(index) {
+            currentLevel = niveles[index];
+            levelTitle.innerText = currentLevel.nombre;
+            generarPaleta(currentLevel.colores);
+            coloresRGB = currentLevel.colores.map(hex => ({
+                r: parseInt(hex.slice(1, 3), 16), g: parseInt(hex.slice(3, 5), 16), b: parseInt(hex.slice(5, 7), 16)
+            }));
+            
+            galleryScreen.classList.add('hidden'); gameScreen.classList.remove('hidden');
+            loadingOverlay.classList.remove('hidden'); // Mostrar loading
+            
+            isVictoryShown = false; progressBar.style.width = '0%'; btnHint.className = ''; 
+            loadedCount = 0; ctx.clearRect(0, 0, canvas.width, canvas.height); 
+            const ts = Date.now();
+            imgLineas.src = currentLevel.lineas + '?' + ts;
+            imgSolucion.src = currentLevel.solucion + '?' + ts;
         }
 
-        async function initGameLogic() {
-            // 1. Cargar imágenes originales
-            const imgL = await loadImage(currentLevel.lineas);
-            const imgS = await loadImage(currentLevel.solucion);
+        imgLineas.onload = checkLoad; imgSolucion.onload = checkLoad;
+        function checkLoad() { loadedCount++; if(loadedCount === 2) setTimeout(startGame, 100); }
 
-            // 2. Configurar visualización HD (Capa Superior)
-            // La imagen se ve tal cual, gigante y nítida
-            linesOverlay.src = currentLevel.lineas;
-            
-            // 3. Configurar Lógica Optimizada (Capa Inferior)
-            // Reducimos la resolución de cálculo a algo manejable (ej. max 1000px)
-            // Esto hace que el relleno sea instantáneo
-            const MAX_LOGIC_DIM = 1000;
-            let w = imgL.width, h = imgL.height;
-            let ratio = 1;
-            
-            if(w > MAX_LOGIC_DIM || h > MAX_LOGIC_DIM) {
-                const r = w / h;
-                if(w > h) { w = MAX_LOGIC_DIM; h = MAX_LOGIC_DIM / r; }
-                else { h = MAX_LOGIC_DIM; w = MAX_LOGIC_DIM * r; }
-                ratio = imgL.width / w; // Cuánto hemos reducido
-            } else {
-                w = imgL.width; h = imgL.height;
-            }
-            w = Math.floor(w); h = Math.floor(h);
-            logicWidth = w; logicHeight = h;
+        async function startGame() {
+            // MÁXIMA CALIDAD: Usamos el tamaño original de la imagen
+            let w = imgLineas.width;
+            let h = imgLineas.height;
 
-            // Configurar Canvas de Pintura (Low Res)
             canvas.width = w; canvas.height = h;
-            
-            // Ajustar tamaño visual del contenedor para que coincida con la imagen HD
-            zoomLayer.style.width = imgL.width + 'px';
-            zoomLayer.style.height = imgL.height + 'px';
-            
-            // El canvas se estira para ocupar todo el zoomLayer
-            // La imagen overlay también ocupa todo el zoomLayer
+            hiddenCanvas.width = w; hiddenCanvas.height = h;
+            linesCanvas.width = w; linesCanvas.height = h;
 
-            // 4. Pre-calcular datos en memoria (Offscreen)
-            const offCanvas = document.createElement('canvas');
-            offCanvas.width = w; offCanvas.height = h;
-            const offCtx = offCanvas.getContext('2d', {willReadFrequently: true});
+            ctx.drawImage(imgLineas, 0, 0);
+            hCtx.drawImage(imgSolucion, 0, 0);
+            lCtx.drawImage(imgLineas, 0, 0);
 
-            // Leer Solución Reducida
-            offCtx.drawImage(imgS, 0, 0, w, h);
-            solutionData = offCtx.getImageData(0, 0, w, h).data;
-
-            // Leer Paredes Reducidas
-            offCtx.drawImage(imgL, 0, 0, w, h);
-            const wallData = offCtx.getImageData(0, 0, w, h).data;
+            // 🚀 OPTIMIZACIÓN V23: PRE-CALCULAR MUROS
+            cachedSolData = hCtx.getImageData(0, 0, w, h).data;
+            const linData = lCtx.getImageData(0, 0, w, h).data;
             
-            // Crear mapa de muros (0 = libre, 1 = muro)
+            // Creamos un mapa de bits ligero para colisiones (0=libre, 1=muro)
             wallMap = new Uint8Array(w * h);
-            totalPixels = 0;
-            for(let i=0; i<wallData.length; i+=4) {
-                // Si es oscuro, es muro
-                if(wallData[i] < 180 && wallData[i+1] < 180 && wallData[i+2] < 180 && wallData[i+3] > 200) {
-                    wallMap[i/4] = 1;
+            totalPixelsToPaint = 0;
+
+            for(let i=0; i<w*h; i++) {
+                const idx = i*4;
+                // Si el pixel es oscuro en la capa de lineas, es un muro
+                if(linData[idx] < 150 && linData[idx+1] < 150 && linData[idx+2] < 150 && linData[idx+3] > 200) {
+                    wallMap[i] = 1;
                 } else {
-                    wallMap[i/4] = 0;
-                    // Solo contamos píxeles que tienen solución (no transparentes)
-                    if(solutionData[i+3] > 0) totalPixels++;
+                    wallMap[i] = 0;
+                    // Solo contamos píxeles pintables para el %
+                    if(cachedSolData[idx+3] > 0) totalPixelsToPaint++;
                 }
             }
 
-            // 5. Cargar progreso guardado
-            const savedBase64 = await loadFromDB(currentLevel.id);
-            if(savedBase64) {
-                const savedImg = await loadImage(savedBase64);
-                ctx.drawImage(savedImg, 0, 0, w, h); // Pintar en canvas low res
-            } else {
-                // Pintar fondo blanco base para que el multiply funcione bien
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0,0,w,h);
+            const savedData = await loadFromDB(currentLevel.id);
+            if(savedData) {
+                const img = new Image();
+                img.onload = () => { ctx.drawImage(img, 0, 0); updateProgress(); loadingOverlay.classList.add('hidden'); };
+                img.src = savedData;
+            } else { 
+                updateProgress(); 
+                loadingOverlay.classList.add('hidden');
             }
 
-            // 6. Resetear Zoom
-            const vpW = document.getElementById('viewport').clientWidth;
-            const vpH = document.getElementById('viewport').clientHeight;
-            const scaleStart = Math.min(vpW/imgL.width, vpH/imgL.height) * 0.9;
-            scale = scaleStart;
-            pX = (vpW - imgL.width*scale)/2; 
-            pY = (vpH - imgL.height*scale)/2;
+            const vW = viewport.clientWidth, vH = viewport.clientHeight, m = 40;
+            const sW = (vW - m) / w, sH = (vH - m) / h;
+            scale = Math.min(sW, sH) || 0.5;
+            pX = (vW - w * scale) / 2; pY = (vH - h * scale) / 2;
             updateTransform();
-
-            updateProgress();
-            loadingOverlay.classList.add('hidden');
         }
 
-        function loadImage(src) {
-            return new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
-        }
-
-        // INPUT & ZOOM (Mapeo de coordenadas HD -> SD)
-        function handleInput(screenX, screenY) {
-            const rect = document.getElementById('viewport').getBoundingClientRect();
-            // Coordenada en el espacio de la imagen HD
-            const hdX = (screenX - rect.left - pX) / scale;
-            const hdY = (screenY - rect.top - pY) / scale;
-
-            // Convertir a coordenada Lógica (SD)
-            // Ratio = logicWidth / originalWidth
-            const ratioX = logicWidth / zoomLayer.clientWidth; // zoomLayer tiene width del original
-            const ratioY = logicHeight / zoomLayer.clientHeight; // pero lo leemos del style setead
-
-            // Ojo: zoomLayer.style.width tiene el tamaño original.
-            // Simplemente hacemos regla de 3
-            const originalW = parseFloat(zoomLayer.style.width);
-            const originalH = parseFloat(zoomLayer.style.height);
-            
-            if(hdX >= 0 && hdX < originalW && hdY >= 0 && hdY < originalH) {
-                const lx = Math.floor(hdX * (logicWidth / originalW));
-                const ly = Math.floor(hdY * (logicHeight / originalH));
-                paintLogic(lx, ly);
-            }
-        }
-
-        function paintLogic(x, y) {
-            const idx = (y * logicWidth + x) * 4;
-            // Check Muro o Vacío
-            if(wallMap[y*logicWidth + x] === 1 || solutionData[idx+3] === 0) return;
-
-            // Check Color Correcto
-            let best = -1, minD = 999;
-            const r = solutionData[idx], g = solutionData[idx+1], b = solutionData[idx+2];
-            coloresRGB.forEach((c, i) => {
-                const d = Math.abs(r-c.r) + Math.abs(g-c.g) + Math.abs(b-c.b);
-                if(d < minD) { minD = d; best = i; }
-            });
-
-            if(best === selectedColorIndex) {
-                floodFill(x, y, coloresRGB[best]);
-                saveToDB(currentLevel.id, canvas.toDataURL());
-                updateProgress();
-            } else {
-                navigator.vibrate?.(200);
-                shakeLayer.classList.add('shake');
-                setTimeout(()=>shakeLayer.classList.remove('shake'), 300);
-            }
-        }
-
-        function floodFill(sx, sy, col) {
-            const w = logicWidth, h = logicHeight;
-            const vis = ctx.getImageData(0,0,w,h);
-            const dat = vis.data;
-            const stack = [[sx, sy]];
-            const tr = col.r, tg = col.g, tb = col.b;
-            
-            // Para evitar bucles infinitos, marcamos visitados en un array simple
-            // Pero como pintamos directamente en 'dat', podemos usar el color como marca
-            // Ojo: si repintamos el mismo color, bucle. Usamos set auxiliar.
-            const seen = new Uint8Array(w*h);
-
-            while(stack.length) {
-                const [cx, cy] = stack.pop();
-                const idx = cy*w + cx;
-                if(seen[idx]) continue;
-                
-                // Check Muro
-                if(wallMap[idx] === 1) continue;
-
-                // Check Solución (Tolerancia estricta)
-                const i = idx*4;
-                // Si coincide con la solución del pixel inicial
-                // (Usamos la solución del punto de toque como referencia, 
-                // pero aquí simplificamos comparando con el color objetivo porque el usuario acertó)
-                const sr=solutionData[i], sg=solutionData[i+1], sb=solutionData[i+2];
-                
-                // ¿Es este pixel parte de la zona del color correcto?
-                // Comparamos con el color que intentamos pintar (que sabemos que es el correcto de la zona)
-                if(Math.abs(sr-tr)<=10 && Math.abs(sg-tg)<=10 && Math.abs(sb-tb)<=10) {
-                    dat[i] = tr; dat[i+1] = tg; dat[i+2] = tb; dat[i+3] = 255;
-                    seen[idx] = 1;
-                    
-                    if(cx+1<w) stack.push([cx+1, cy]);
-                    if(cx-1>=0) stack.push([cx-1, cy]);
-                    if(cy+1<h) stack.push([cx, cy+1]);
-                    if(cy-1>=0) stack.push([cx, cy-1]);
-                }
-            }
-            ctx.putImageData(vis, 0, 0);
-        }
-
-        // AYUDAS Y PROGRESO
         function updateProgress() {
-            // Muestreo rápido (1 de cada 20 pixeles)
-            const w = logicWidth, h = logicHeight;
-            const cur = ctx.getImageData(0,0,w,h).data;
-            let painted = 0;
-            let totalSample = 0;
-            const step = 20;
-
-            for(let i=0; i<solutionData.length; i+=4*step) {
-                // Si no es muro y tiene solución
-                if(wallMap[i/4] === 0 && solutionData[i+3]>0) {
-                    totalSample++;
-                    // Si el color actual se parece al de la solución
-                    if(Math.abs(cur[i]-solutionData[i])<5 && Math.abs(cur[i+1]-solutionData[i+1])<5) {
-                        painted++;
+            if(isVictoryShown) return;
+            const w = canvas.width, h = canvas.height;
+            // Escaneo optimizado con pasos
+            const currentData = ctx.getImageData(0,0,w,h).data;
+            const solData = cachedSolData;
+            let paintedCount = 0;
+            
+            // Muestreo estadístico rápido (miramos 1 de cada 10 pixeles) para velocidad UI
+            const step = 10; 
+            let sampleTotal = 0;
+            
+            for(let i=0; i<solData.length; i+=(4*step)) {
+                if(solData[i+3] > 0 && wallMap[i/4] === 0) {
+                    sampleTotal++;
+                    if(Math.abs(currentData[i] - solData[i]) <= 2 &&
+                       Math.abs(currentData[i+1] - solData[i+1]) <= 2 &&
+                       Math.abs(currentData[i+2] - solData[i+2]) <= 2) {
+                        paintedCount++;
                     }
                 }
             }
-            const pct = (painted / totalSample) * 100;
-            progressBar.style.width = pct + '%';
 
-            if(pct > 95) { btnHint.innerText = "✨"; btnHint.classList.add('active'); }
-            else if(pct > 90) { btnHint.innerText = "💡"; btnHint.classList.add('active'); }
-            else btnHint.classList.remove('active');
+            const percentage = (paintedCount / sampleTotal) * 100;
+            progressBar.style.width = percentage + '%';
 
-            if(pct > 99.5 && !localStorage.getItem('done_'+currentLevel.id)) {
-                localStorage.setItem('done_'+currentLevel.id, 'true');
-                confetti({particleCount:150, spread:70, origin:{y:0.6}});
-                setTimeout(()=>document.getElementById('victory-modal').classList.remove('hidden'), 1000);
+            // AJUSTE UMBRALES
+            if(percentage > 95) {
+                btnHint.innerText = "✨"; // Varita (Completa todo)
+                btnHint.classList.add('active');
+            } else if (percentage > 90) {
+                btnHint.innerText = "💡"; // Bombilla (Busca zona)
+                btnHint.classList.add('active');
+            } else {
+                btnHint.classList.remove('active');
             }
+
+            if(percentage > 99.5) triggerVictory();
         }
 
         btnHint.onclick = () => {
-            const w = logicWidth, h = logicHeight;
-            const pct = parseFloat(progressBar.style.width);
-            
-            if(pct > 95) {
-                // VARITA: Pintar todo lo que falta
-                const imgData = ctx.getImageData(0,0,w,h);
-                const d = imgData.data;
-                for(let i=0; i<d.length; i+=4) {
-                    if(wallMap[i/4]===0 && solutionData[i+3]>0) {
-                        d[i]=solutionData[i]; d[i+1]=solutionData[i+1]; d[i+2]=solutionData[i+2]; d[i+3]=255;
+            const w = canvas.width, h = canvas.height;
+            const currentData = ctx.getImageData(0,0,w,h); 
+            const dat = currentData.data;
+            const solData = cachedSolData;
+            const percentage = parseFloat(progressBar.style.width);
+
+            if(percentage > 95) {
+                // VARITA MÁGICA
+                for(let i=0; i<solData.length; i+=4) {
+                    if(solData[i+3] > 0 && wallMap[i/4] === 0) {
+                        dat[i] = solData[i]; dat[i+1] = solData[i+1]; dat[i+2] = solData[i+2]; dat[i+3] = 255;
                     }
                 }
-                ctx.putImageData(imgData, 0, 0);
+                ctx.putImageData(currentData, 0, 0);
                 saveToDB(currentLevel.id, canvas.toDataURL());
                 updateProgress();
             } else {
-                // BOMBILLA: Buscar zona vacía
-                const cur = ctx.getImageData(0,0,w,h).data;
-                const step = 4*5; // saltos pequeños
-                for(let i=0; i<cur.length; i+=step) {
-                    if(wallMap[i/4]===0 && solutionData[i+3]>0) {
-                        // Si está sin pintar (diferente a solucion)
-                        if(Math.abs(cur[i]-solutionData[i])>10) {
-                            // Encontramos un pixel sin pintar. Identificar color y floodfill
-                            let best = -1, minD = 999;
-                            coloresRGB.forEach((c, idx) => {
-                                const d = Math.abs(solutionData[i]-c.r) + Math.abs(solutionData[i+1]-c.g) + Math.abs(solutionData[i+2]-c.b);
-                                if(d < minD) { minD=d; best=idx; }
-                            });
-                            
-                            if(best !== -1) {
-                                const pixIdx = i/4;
-                                floodFill(pixIdx%w, Math.floor(pixIdx/w), coloresRGB[best]);
-                                saveToDB(currentLevel.id, canvas.toDataURL());
-                                updateProgress();
-                                // Centrar
-                                const originalW = parseFloat(zoomLayer.style.width);
-                                const originalH = parseFloat(zoomLayer.style.height);
-                                const hdX = (pixIdx%w) * (originalW/w);
-                                const hdY = Math.floor(pixIdx/w) * (originalH/h);
-                                const vpW = document.getElementById('viewport').clientWidth;
-                                const vpH = document.getElementById('viewport').clientHeight;
-                                pX = (vpW/2) - (hdX*scale);
-                                pY = (vpH/2) - (hdY*scale);
-                                updateTransform();
-                            }
-                            break;
+                // BOMBILLA (Busca ZONA)
+                const scanStep = 4 * 10; 
+                for(let i=0; i<solData.length; i+=scanStep) {
+                    if(solData[i+3] > 0 && wallMap[i/4] === 0 && 
+                       (Math.abs(dat[i]-solData[i])>2 || Math.abs(dat[i+1]-solData[i+1])>2)) {
+                        
+                        const pixelIdx = i / 4;
+                        const y = Math.floor(pixelIdx / w);
+                        const x = pixelIdx % w;
+                        
+                        let best=-1, minD=999999;
+                        coloresRGB.forEach((c, idx) => {
+                            const d = Math.abs(solData[i]-c.r) + Math.abs(solData[i+1]-c.g) + Math.abs(solData[i+2]-c.b);
+                            if(d < minD) { minD=d; best=idx; }
+                        });
+                        
+                        if(best !== -1) {
+                            fillArea(x, y, coloresRGB[best]);
+                            saveToDB(currentLevel.id, canvas.toDataURL());
+                            updateProgress();
+                            pX = (viewport.clientWidth/2) - (x * scale);
+                            pY = (viewport.clientHeight/2) - (y * scale);
+                            updateTransform();
                         }
+                        break; 
                     }
                 }
             }
         };
 
-        // EVENTOS TOUCH & ZOOM
+        function triggerVictory() {
+            isVictoryShown = true;
+            localStorage.setItem('completed_' + currentLevel.id, 'true');
+            confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+            setTimeout(() => { victoryModal.classList.remove('hidden'); }, 800);
+        }
+        function cerrarVictoria() { victoryModal.classList.add('hidden'); }
+
+        function generarPaleta(coloresHex) {
+            paletaDiv.innerHTML = ''; selectedColorIndex = 0;
+            coloresHex.forEach((c, i) => {
+                const btn = document.createElement('div');
+                btn.className = 'color-btn';
+                btn.style.backgroundColor = c;
+                const r = parseInt(c.slice(1,3),16), g = parseInt(c.slice(3,5),16), b = parseInt(c.slice(5,7),16);
+                if ((r*0.299 + g*0.587 + b*0.114) > 186) btn.classList.add('light');
+                btn.innerHTML = `<span class="color-number">${i + 1}</span>`;
+                if(i === 0) btn.classList.add('selected');
+                const selectMe = (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    selectedColorIndex = i;
+                };
+                btn.addEventListener('touchstart', selectMe, {passive:false});
+                btn.onclick = selectMe;
+                paletaDiv.appendChild(btn);
+            });
+        }
+
+        document.getElementById('btn-back').onclick = async () => {
+            if(currentLevel) await saveToDB(currentLevel.id, canvas.toDataURL());
+            gameScreen.classList.add('hidden'); galleryScreen.classList.remove('hidden');
+            currentLevel = null; renderGallery();
+        };
+        document.getElementById('btn-reset').onclick = () => {
+            if(confirm('¿Reiniciar foto?')) {
+                deleteFromDB(currentLevel.id);
+                localStorage.removeItem('completed_' + currentLevel.id);
+                ctx.drawImage(imgLineas, 0, 0); updateProgress();
+            }
+        };
+        document.getElementById('btn-download').onclick = () => {
+            const link = document.createElement('a');
+            link.download = currentLevel.nombre + '.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        };
+        const btnSol = document.getElementById('btn-solucion');
+        let backup;
+        const showS = (e) => { e.preventDefault(); if(backup)return; backup=ctx.getImageData(0,0,canvas.width,canvas.height); ctx.drawImage(imgSolucion,0,0); };
+        const hideS = (e) => { if(e)e.preventDefault(); if(!backup)return; ctx.putImageData(backup,0,0); backup=null; };
+        btnSol.addEventListener('touchstart', showS); btnSol.addEventListener('touchend', hideS);
+        btnSol.addEventListener('mousedown', showS); window.addEventListener('mouseup', hideS);
+
+        function updateTransform() { zoomLayer.style.transform = `translate(${pX}px, ${pY}px) scale(${scale})`; }
         let isDrag=false, isPinch=false, hasMov=false, lX=0, lY=0, initDist=0, lZoomT=0;
-        viewport.addEventListener('touchstart', e => {
+
+        viewport.addEventListener('touchstart', (e) => {
             if(e.target.closest('.paleta-container')) return;
             if(e.touches.length===1) { isDrag=true; hasMov=false; lX=e.touches[0].clientX; lY=e.touches[0].clientY; }
             else if(e.touches.length===2) { isDrag=false; isPinch=true; initDist=getDist(e.touches[0], e.touches[1]); lZoomT=Date.now(); }
         }, {passive:false});
-        viewport.addEventListener('touchmove', e => {
+
+        viewport.addEventListener('touchmove', (e) => {
             e.preventDefault();
             if(e.touches.length===2) lZoomT=Date.now();
             if(isDrag && e.touches.length===1) {
@@ -550,34 +585,88 @@
                 scale=ns; initDist=dist; updateTransform();
             }
         }, {passive:false});
-        viewport.addEventListener('touchend', e => {
+
+        viewport.addEventListener('touchend', (e) => {
             isDrag=false; isPinch=false;
             if(Date.now()-lZoomT<400) return;
-            if(e.changedTouches.length===1 && !hasMov) handleInput(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+            if(e.changedTouches.length===1 && !hasMov) { const t=e.changedTouches[0]; handleInput(t.clientX, t.clientY); }
         });
+
+        viewport.addEventListener('mousedown', e=>{isDrag=true; hasMov=false; lX=e.clientX; lY=e.clientY;});
+        viewport.addEventListener('mousemove', e=>{if(!isDrag)return; const dx=e.clientX-lX, dy=e.clientY-lY; if(Math.abs(dx)>2||Math.abs(dy)>2) hasMov=true; pX+=dx; pY+=dy; lX=e.clientX; lY=e.clientY; updateTransform();});
+        viewport.addEventListener('mouseup', e=>{isDrag=false; if(!hasMov) handleInput(e.clientX, e.clientY);});
+        viewport.addEventListener('wheel', e=>{
+            e.preventDefault(); const rect=viewport.getBoundingClientRect();
+            const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+            const ns=Math.min(Math.max(0.1, scale*(e.deltaY>0?0.9:1.1)), 12);
+            pX=mx-(mx-pX)*(ns/scale); pY=my-(my-pY)*(ns/scale); scale=ns; updateTransform();
+        }, {passive:false});
+
         function getDist(t1, t2) { return Math.hypot(t1.clientX-t2.clientX, t1.clientY-t2.clientY); }
-        function updateTransform() { zoomLayer.style.transform = `translate(${pX}px, ${pY}px) scale(${scale})`; }
 
-        // Botones extra
-        document.getElementById('btn-back').onclick = () => { gameScreen.classList.add('hidden'); document.getElementById('gallery-screen').classList.remove('hidden'); renderGallery(); };
-        document.getElementById('btn-reset').onclick = () => { if(confirm('¿Reiniciar?')) { deleteFromDB(currentLevel.id); localStorage.removeItem('done_'+currentLevel.id); ctx.fillStyle='#fff'; ctx.fillRect(0,0,logicWidth,logicHeight); updateProgress(); } };
-        document.getElementById('btn-download').onclick = () => { 
-            // Componer imagen final HD para descargar
-            const finalC = document.createElement('canvas');
-            finalC.width = logicWidth; finalC.height = logicHeight;
-            const fCtx = finalC.getContext('2d');
-            fCtx.drawImage(canvas, 0, 0); // Pintura
-            fCtx.globalCompositeOperation = 'multiply';
-            fCtx.drawImage(document.getElementById('lines-overlay'), 0, 0, logicWidth, logicHeight); // Lineas
-            const link = document.createElement('a');
-            link.download = 'Recuerdo.png';
-            link.href = finalC.toDataURL();
-            link.click();
-        };
-        const btnSol = document.getElementById('btn-solucion');
-        btnSol.onmousedown = btnSol.ontouchstart = (e) => { e.preventDefault(); linesOverlay.style.opacity=0; canvas.style.opacity=0; zoomLayer.style.backgroundImage=`url('${currentLevel.solucion}')`; zoomLayer.style.backgroundSize='100% 100%'; };
-        btnSol.onmouseup = btnSol.ontouchend = () => { linesOverlay.style.opacity=1; canvas.style.opacity=1; zoomLayer.style.backgroundImage='none'; };
+        function handleInput(cx, cy) {
+            const rect = viewport.getBoundingClientRect();
+            if(cy > rect.bottom) return;
+            const x = Math.floor((cx - rect.left - pX) / scale);
+            const y = Math.floor((cy - rect.top - pY) / scale);
+            if(x>=0 && x<canvas.width && y>=0 && y<canvas.height) tryPaint(x, y);
+        }
 
+        function tryPaint(x, y) {
+            const idx = (y * canvas.width + x) * 4;
+            const pR = cachedSolData[idx], pG = cachedSolData[idx+1], pB = cachedSolData[idx+2], pA = cachedSolData[idx+3];
+            
+            // Check Muro (Optimizado V23)
+            if(wallMap[y*canvas.width + x] === 1 || pA === 0) return;
+
+            let best=-1, minD=999999;
+            coloresRGB.forEach((c, i) => {
+                const d = Math.abs(pR-c.r) + Math.abs(pG-c.g) + Math.abs(pB-c.b);
+                if(d < minD) { minD=d; best=i; }
+            });
+
+            if(best === selectedColorIndex) {
+                fillArea(x, y, coloresRGB[best]);
+                saveToDB(currentLevel.id, canvas.toDataURL());
+                updateProgress(); 
+            } else {
+                if(navigator.vibrate) navigator.vibrate(200);
+                shakeLayer.classList.add('shake');
+                setTimeout(()=>shakeLayer.classList.remove('shake'), 300);
+            }
+        }
+
+        function fillArea(sx, sy, col) {
+            const w = canvas.width, h = canvas.height;
+            const vis = ctx.getImageData(0,0,w,h);
+            const dat = vis.data;
+            const sol = cachedSolData;
+            // No necesitamos leer líneas aquí, usamos wallMap
+            
+            const q = [[sx, sy]], visSet = new Uint8Array(w*h);
+            const tr=col.r, tg=col.g, tb=col.b;
+
+            while(q.length) {
+                const [cx, cy] = q.pop();
+                const idx = cy*w + cx;
+                if(visSet[idx]) continue;
+                visSet[idx] = 1;
+
+                // 🚀 CHECK TURBO: Muro precalculado
+                if(wallMap[idx] === 1) continue;
+
+                // Check solución (Tolerancia 1 para evitar fugas)
+                const i = idx*4;
+                if(Math.abs(sol[i]-tr)<=1 && Math.abs(sol[i+1]-tg)<=1 && Math.abs(sol[i+2]-tb)<=1) {
+                    dat[i]=tr; dat[i+1]=tg; dat[i+2]=tb; dat[i+3]=255;
+                    if(cx+1<w) q.push([cx+1, cy]);
+                    if(cx-1>=0) q.push([cx-1, cy]);
+                    if(cy+1<h) q.push([cx, cy+1]);
+                    if(cy-1>=0) q.push([cx, cy-1]);
+                }
+            }
+            ctx.putImageData(vis, 0, 0);
+        }
     </script>
 </body>
 </html>
