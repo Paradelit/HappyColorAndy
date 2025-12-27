@@ -33,7 +33,7 @@
         /* GALERÍA */
         #gallery-screen { z-index: 20; overflow-y: auto; align-items: center; }
         .gallery-content { padding: 20px; width: 100%; max-width: 600px; box-sizing: border-box; }
-        .gallery-header-block { text-align: center; margin: 30px 0 20px 0; }
+        .gallery-header-block { text-align: center; margin: 30px 0 20px 0; position: relative; }
         .gallery-title { color: #d63384; font-size: 1.8rem; margin: 0; }
         .gallery-subtitle { color: #666; font-size: 0.9rem; margin-top: 5px; }
         .app-title-small { color: #999; font-size: 0.75rem; margin-top: 3px; font-weight: normal; }
@@ -55,6 +55,16 @@
             font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
         .thumb-title { padding: 15px; font-weight: bold; color: #444; text-align: center; }
+
+        /* Botón de sonido flotante en Galería */
+        .gallery-sound-btn {
+            position: absolute; top: 15px; right: 15px;
+            background: white; border: none; border-radius: 50%;
+            width: 40px; height: 40px; font-size: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); cursor: pointer; z-index: 50;
+            display: flex; justify-content: center; align-items: center;
+            color: #d63384;
+        }
 
         /* JUEGO */
         header {
@@ -187,6 +197,7 @@
 <body>
 
     <div id="gallery-screen" class="screen">
+        <button id="btn-sound-gallery" class="gallery-sound-btn" title="Sonido">🔈</button>
         <div id="ptr-indicator">⬇️ Suelta para recargar</div>
         <div class="gallery-content">
             <div class="gallery-header-block">
@@ -203,6 +214,7 @@
             <button id="btn-back" class="icon-btn" title="Volver">⬅️</button>
             <h1>Foto</h1>
             <div class="header-btns">
+                <button id="btn-sound-game" class="icon-btn" title="Sonido">🔈</button>
                 <button id="btn-hint" class="icon-btn" title="Ayuda - Buscar zona">💡</button>
                 <button id="btn-magic" class="icon-btn" title="Varita mágica - Completar">✨</button>
                 <button id="btn-download" class="icon-btn" title="Descargar imagen">💾</button>
@@ -238,7 +250,110 @@
 
     <script>
         // ==========================================
-        // 🚀 VERSIÓN FINAL - MÁXIMA OPTIMIZACIÓN
+        // 1. VARIABLES GLOBALES Y ESTADO
+        // ==========================================
+        
+        // Audio
+        const bgMusic = new Audio('bg-music.mp3'); 
+        bgMusic.loop = true; 
+        bgMusic.volume = 0.2;
+        const sPaint = new Audio('paint-ok.mp3'); 
+        sPaint.volume = 0.4;
+        const sVictory = new Audio('victory.mp3'); 
+        sVictory.volume = 0.5;
+
+        // Estado del Juego
+        let currentLevel = null;
+        let coloresRGB = [];
+        let selectedColorIndex = 0;
+        let scale = 1, pX = 0, pY = 0;
+        let isVictoryShown = false;
+        let progressUpdateQueued = false;
+        
+        // Optimizaciones / Cache
+        let cachedSolData = null, wallMap = null, paintablePixels = [];
+        let saveTimeout = null, floodVisited = null, imageCache = {};
+        let imgLineas = new Image(), imgSolucion = new Image();
+        let loadedCount = 0;
+
+        // Configuración de Sonido
+        let soundEnabled = localStorage.getItem('happy_color_sound') !== 'off';
+
+        // ==========================================
+        // 2. ELEMENTOS DOM (Capturados AL INICIO)
+        // ==========================================
+        const galleryScreen = document.getElementById('gallery-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const victoryModal = document.getElementById('victory-modal');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        
+        const galleryGrid = document.getElementById('gallery-grid');
+        const galleryCounter = document.getElementById('gallery-counter');
+        const levelTitle = document.querySelector('header h1');
+        
+        const btnSoundGallery = document.getElementById('btn-sound-gallery');
+        const btnSoundGame = document.getElementById('btn-sound-game');
+        const btnBack = document.getElementById('btn-back');
+        const btnHint = document.getElementById('btn-hint');
+        const btnMagic = document.getElementById('btn-magic');
+        const btnReset = document.getElementById('btn-reset');
+        const btnDownload = document.getElementById('btn-download');
+        const btnSol = document.getElementById('btn-solucion');
+        
+        const paletaDiv = document.getElementById('paleta');
+        const progressBar = document.getElementById('progress-bar');
+        
+        const canvas = document.getElementById('lienzo');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const victoryCanvas = document.getElementById('victory-canvas');
+        const vCtx = victoryCanvas.getContext('2d');
+        const zoomLayer = document.getElementById('zoom-layer');
+        const shakeLayer = document.getElementById('shake-layer');
+        const viewport = document.getElementById('viewport');
+        const ptrIndicator = document.getElementById('ptr-indicator');
+
+        // Canvas ocultos para lógica
+        const hiddenCanvas = document.createElement('canvas');
+        const hCtx = hiddenCanvas.getContext('2d', { willReadFrequently: true });
+        const linesCanvas = document.createElement('canvas');
+        const lCtx = linesCanvas.getContext('2d', { willReadFrequently: true });
+
+        // ==========================================
+        // 3. LÓGICA DE SONIDO
+        // ==========================================
+        function updateSoundState() {
+            const icon = soundEnabled ? '🔈' : '🔇';
+            if(btnSoundGallery) btnSoundGallery.innerText = icon;
+            if(btnSoundGame) btnSoundGame.innerText = icon;
+
+            // Gestionar música de fondo
+            if(soundEnabled) {
+                // Si estamos en el juego y no en victoria, reproducir
+                if(currentLevel && !isVictoryShown && !gameScreen.classList.contains('hidden')) {
+                    bgMusic.play().catch(e => console.log("Audio play blocked/failed", e));
+                }
+            } else {
+                bgMusic.pause();
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            localStorage.setItem('happy_color_sound', soundEnabled ? 'on' : 'off');
+            updateSoundState();
+        }
+
+        function playEffect(audio) {
+            if(!soundEnabled) return;
+            audio.currentTime = 0;
+            audio.play().catch(e => {});
+        }
+
+        if(btnSoundGallery) btnSoundGallery.onclick = toggleSound;
+        if(btnSoundGame) btnSoundGame.onclick = toggleSound;
+
+        // ==========================================
+        // 4. DATOS Y DB
         // ==========================================
         const niveles = [
             {
@@ -281,7 +396,6 @@
             }
         ];
 
-        // DB
         const DB_NAME = 'HappyAndyDB', DB_VERSION = 1;
         let db;
 
@@ -319,40 +433,9 @@
             tx.objectStore('saves').delete(id);
         }
 
-        // ELEMENTOS
-        const galleryGrid = document.getElementById('gallery-grid');
-        const galleryScreen = document.getElementById('gallery-screen');
-        const gameScreen = document.getElementById('game-screen');
-        const levelTitle = document.querySelector('header h1');
-        const paletaDiv = document.getElementById('paleta');
-        const progressBar = document.getElementById('progress-bar');
-        const victoryModal = document.getElementById('victory-modal');
-        const btnHint = document.getElementById('btn-hint');
-        const btnMagic = document.getElementById('btn-magic');
-        const galleryCounter = document.getElementById('gallery-counter');
-        const loadingOverlay = document.getElementById('loading-overlay');
-        const canvas = document.getElementById('lienzo');
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        const hiddenCanvas = document.createElement('canvas');
-        const hCtx = hiddenCanvas.getContext('2d', { willReadFrequently: true });
-        const linesCanvas = document.createElement('canvas');
-        const lCtx = linesCanvas.getContext('2d', { willReadFrequently: true });
-        const victoryCanvas = document.getElementById('victory-canvas');
-        const vCtx = victoryCanvas.getContext('2d');
-        const zoomLayer = document.getElementById('zoom-layer');
-        const shakeLayer = document.getElementById('shake-layer');
-        const viewport = document.getElementById('viewport');
-
-        // STATE
-        let currentLevel = null, coloresRGB = [], selectedColorIndex = 0;
-        let scale = 1, pX = 0, pY = 0;
-        let imgLineas = new Image(), imgSolucion = new Image();
-        let loadedCount = 0;
-        
-        // 🚀 OPTIMIZACIONES
-        let cachedSolData = null, wallMap = null, paintablePixels = [];
-        let isVictoryShown = false, progressUpdateQueued = false;
-        let saveTimeout = null, floodVisited = null, imageCache = {};
+        // ==========================================
+        // 5. FUNCIONES DEL JUEGO
+        // ==========================================
 
         initDB().then(() => { 
             preloadAllImages();
@@ -403,7 +486,6 @@
 
         // PTR
         let ptrStartY = 0, ptrDist = 0;
-        const ptrIndicator = document.getElementById('ptr-indicator');
         galleryScreen.addEventListener('touchstart', e => { if (galleryScreen.scrollTop === 0) ptrStartY = e.touches[0].clientY; }, {passive: true});
         galleryScreen.addEventListener('touchmove', e => {
             const y = e.touches[0].clientY;
@@ -452,6 +534,12 @@
             }
             
             if (loadedCount === 2) setTimeout(startGame, 50);
+
+            // 🎵 INICIAR MÚSICA AL ENTRAR AL NIVEL
+            if(soundEnabled) {
+                bgMusic.currentTime = 0;
+                bgMusic.play().catch(()=>{});
+            }
         }
 
         imgLineas.onload = checkLoad; imgSolucion.onload = checkLoad;
@@ -460,7 +548,6 @@
             if(loadedCount === 2) setTimeout(startGame, 50);
         }
 
-        // 🚀 OPTIMIZACIÓN: Muestreo adaptativo según tamaño real
         async function startGame() {
             const w = imgLineas.width, h = imgLineas.height;
 
@@ -505,7 +592,6 @@
             updateTransform();
         }
 
-        // 🚀 AUTOSAVE más inteligente para imágenes grandes
         function scheduleSave() {
             clearTimeout(saveTimeout);
             const totalPixels = canvas.width * canvas.height;
@@ -516,7 +602,6 @@
             }, delay);
         }
 
-        // 🚀 PROGRESS OPTIMIZADO
         function queueProgressUpdate() {
             if (progressUpdateQueued) return;
             progressUpdateQueued = true;
@@ -526,7 +611,6 @@
             });
         }
 
-        // 🚀 PROGRESS ULTRA-OPTIMIZADO para imágenes gigantes
         function updateProgress() {
             if(isVictoryShown) return;
 
@@ -534,7 +618,6 @@
             const sol = cachedSolData;
             let ok = 0;
             
-            // 🚀 Muestreo MUY agresivo para imágenes grandes
             const totalPixels = canvas.width * canvas.height;
             let step;
             if (totalPixels > 50_000_000) step = 50;
@@ -552,11 +635,10 @@
             const pct = (ok / Math.ceil(paintablePixels.length / step)) * 100;
             progressBar.style.width = pct + '%';
 
-            // Actualizar botones de ayuda - mantener ambos cuando llegue a 95%
-            if(pct > 10) {
+            if(pct > 95) {
                 btnMagic.classList.add('active');
                 btnHint.classList.add('active');
-            } else if (pct > 5) {
+            } else if (pct > 90) {
                 btnHint.classList.add('active');
                 btnMagic.classList.remove('active');
             } else {
@@ -568,7 +650,6 @@
         }
 
         btnHint.onclick = () => {
-            // BOMBILLA - Busca zona sin pintar
             const w = canvas.width, h = canvas.height;
             const currentData = ctx.getImageData(0,0,w,h); 
             const dat = currentData.data;
@@ -600,7 +681,6 @@
         };
 
         btnMagic.onclick = () => {
-            // VARITA MÁGICA - Completa todo
             const w = canvas.width, h = canvas.height;
             const currentData = ctx.getImageData(0,0,w,h); 
             const dat = currentData.data;
@@ -620,22 +700,27 @@
             isVictoryShown = true;
             localStorage.setItem('completed_' + currentLevel.id, 'true');
             
-            // Mostrar el nombre completo del recuerdo
+            // 🎵 DETENER MÚSICA Y TOCAR VICTORIA
+            bgMusic.pause();
+            playEffect(sVictory);
+
             document.getElementById('victory-title').innerText = currentLevel.nombreCompleto;
             
-            // Dibujar directamente la imagen solución sin líneas
             const w = imgSolucion.width, h = imgSolucion.height;
             victoryCanvas.width = w;
             victoryCanvas.height = h;
             
-            // Dibujar la imagen solución limpia
             vCtx.drawImage(imgSolucion, 0, 0);
             
             confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
             setTimeout(() => { victoryModal.classList.remove('hidden'); }, 800);
         }
         
-        function cerrarVictoria() { victoryModal.classList.add('hidden'); }
+        function cerrarVictoria() { 
+            victoryModal.classList.add('hidden');
+            // Reanudar música suavemente si no salimos
+            if(soundEnabled && !gameScreen.classList.contains('hidden')) bgMusic.play().catch(()=>{});
+        }
 
         function generarPaleta(coloresHex) {
             paletaDiv.innerHTML = ''; selectedColorIndex = 0;
@@ -681,9 +766,16 @@
         }
 
         document.getElementById('btn-back').onclick = async () => {
+            // 🎵 PARAR MÚSICA AL SALIR
+            bgMusic.pause();
+            bgMusic.currentTime = 0;
+
             if(currentLevel) scheduleSave();
             gameScreen.classList.add('hidden'); galleryScreen.classList.remove('hidden');
             currentLevel = null; renderGallery();
+            
+            // Actualizar iconos de sonido en galería por si acaso
+            updateSoundState();
         };
         
         document.getElementById('btn-reset').onclick = () => {
@@ -701,10 +793,11 @@
             link.click();
         };
         
-        const btnSol = document.getElementById('btn-solucion');
+        // El botón ya se declaró al principio (btnSol), así que solo asignamos el evento
         let backup;
         const showS = (e) => { e.preventDefault(); if(backup)return; backup=ctx.getImageData(0,0,canvas.width,canvas.height); ctx.drawImage(imgSolucion,0,0); };
         const hideS = (e) => { if(e)e.preventDefault(); if(!backup)return; ctx.putImageData(backup,0,0); backup=null; };
+        
         btnSol.addEventListener('touchstart', showS); 
         btnSol.addEventListener('touchend', hideS);
         btnSol.addEventListener('mousedown', showS); 
@@ -775,6 +868,9 @@
             });
 
             if(best === selectedColorIndex) {
+                // 🎵 EFECTO DE PINTURA CORRECTA
+                playEffect(sPaint);
+
                 fillArea(x, y, coloresRGB[best]);
                 scheduleSave();
                 queueProgressUpdate();
@@ -785,7 +881,6 @@
             }
         }
 
-        // 🚀 FILL AREA ULTRA-OPTIMIZADO para máxima velocidad
         function fillArea(sx, sy, col) {
             const w = canvas.width, h = canvas.height;
 
@@ -827,6 +922,9 @@
             
             ctx.putImageData(vis, 0, 0);
         }
+
+        // Llamada final para inicializar el estado del audio
+        updateSoundState();
     </script>
 </body>
 </html>
