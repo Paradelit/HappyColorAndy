@@ -69,11 +69,22 @@
             background: #eee; border: none; border-radius: 50%;
             width: 35px; height: 35px; font-size: 18px; cursor: pointer;
             display: flex; justify-content: center; align-items: center;
+            transition: all 0.2s ease;
         }
-        button.icon-btn:active { background: #d63384; color: white; }
+        button.icon-btn:hover { background: #ddd; transform: scale(1.1); }
+        button.icon-btn:active { background: #d63384; color: white; transform: scale(0.95); }
         
-        #btn-hint { background: #fff3cd; color: #856404; display: none; }
+        #btn-hint { background: #fff3cd; color: #856404; display: none; position: relative; }
         #btn-hint.active { display: flex; animation: popIn 0.3s; }
+        #btn-hint.magic { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        
+        .hint-badge {
+            position: absolute; top: -5px; right: -5px;
+            background: #667eea; color: white; border-radius: 50%;
+            width: 18px; height: 18px; font-size: 10px;
+            display: flex; justify-content: center; align-items: center;
+            font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
 
         #progress-container { width: 100%; height: 4px; background: #e0e0e0; position: relative; z-index: 450; }
         #progress-bar { height: 100%; background: #d63384; width: 0%; transition: width 0.3s ease; }
@@ -94,13 +105,16 @@
         .color-btn { 
             width: 50px; height: 50px; border-radius: 50%; border: 3px solid #fff; 
             box-shadow: 0 2px 5px rgba(0,0,0,0.2); position: relative; flex-shrink: 0;
+            transition: all 0.2s ease; cursor: pointer;
         }
+        .color-btn:hover { transform: scale(1.05); box-shadow: 0 3px 7px rgba(0,0,0,0.3); }
         .color-number {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             color: #fff; font-weight: bold; font-size: 18px; text-shadow: 0 1px 2px rgba(0,0,0,0.8); pointer-events: none;
         }
         .color-btn.light .color-number { color: #333; text-shadow: none; }
         .selected { border-color: #333; transform: scale(1.1); box-shadow: 0 4px 8px rgba(0,0,0,0.3); }
+        .selected:hover { transform: scale(1.1); }
 
         .shake { animation: shake 0.3s; }
         @keyframes shake {
@@ -112,19 +126,39 @@
 
         #victory-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7); z-index: 2000;
+            background: rgba(0,0,0,0.85); z-index: 2000;
             display: flex; justify-content: center; align-items: center;
         }
         .victory-content {
             background: white; padding: 30px; border-radius: 20px; text-align: center;
             box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            max-width: 90%; overflow: hidden;
         }
         .victory-content h2 { color: #d63384; margin: 0 0 10px 0; }
         .victory-content p { color: #555; margin: 0 0 20px 0; }
+        
+        #victory-canvas {
+            max-width: 100%; max-height: 60vh; border-radius: 10px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            border: 15px solid #8B7355; 
+            border-image: repeating-linear-gradient(45deg, #8B7355, #8B7355 10px, #A0826D 10px, #A0826D 20px) 15;
+            margin: 20px auto;
+            animation: fadeInFrame 1s ease forwards;
+            opacity: 0;
+        }
+        
+        @keyframes fadeInFrame {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
         .victory-btn { 
             background: #d63384; color: white; border: none; padding: 10px 25px; 
             font-size: 1rem; border-radius: 25px; cursor: pointer; 
+            transition: all 0.2s ease;
         }
+        .victory-btn:hover { background: #b82872; transform: scale(1.05); }
+        .victory-btn:active { transform: scale(0.95); }
         
         #ptr-indicator {
             height: 0; overflow: hidden; display: flex; justify-content: center; align-items: center;
@@ -183,6 +217,7 @@
         <div class="victory-content">
             <h2>¡Felicidades! 🎉</h2>
             <p>Has completado este recuerdo.</p>
+            <canvas id="victory-canvas"></canvas>
             <button class="victory-btn" onclick="cerrarVictoria()">¡Genial!</button>
         </div>
     </div>
@@ -285,6 +320,8 @@
         const hCtx = hiddenCanvas.getContext('2d', { willReadFrequently: true });
         const linesCanvas = document.createElement('canvas');
         const lCtx = linesCanvas.getContext('2d', { willReadFrequently: true });
+        const victoryCanvas = document.getElementById('victory-canvas');
+        const vCtx = victoryCanvas.getContext('2d');
         const zoomLayer = document.getElementById('zoom-layer');
         const shakeLayer = document.getElementById('shake-layer');
         const viewport = document.getElementById('viewport');
@@ -375,7 +412,7 @@
             galleryScreen.classList.add('hidden'); gameScreen.classList.remove('hidden');
             loadingOverlay.classList.remove('hidden');
             
-            isVictoryShown = false; progressBar.style.width = '0%'; btnHint.className = ''; 
+            isVictoryShown = false; progressBar.style.width = '0%'; btnHint.className = 'icon-btn'; 
             loadedCount = 0; ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             // Usar cache
@@ -499,14 +536,16 @@
             const pct = (ok / Math.ceil(paintablePixels.length / step)) * 100;
             progressBar.style.width = pct + '%';
 
-            if(pct > 10) {
-                btnHint.innerText = "✨";
+            // Actualizar botones de ayuda
+            if(pct > 95) {
+                btnHint.classList.add('active', 'magic');
+                btnHint.innerHTML = "✨<span class='hint-badge'>💡</span>";
+            } else if (pct > 90) {
                 btnHint.classList.add('active');
-            } else if (pct > 0) {
-                btnHint.innerText = "💡";
-                btnHint.classList.add('active');
+                btnHint.classList.remove('magic');
+                btnHint.innerHTML = "💡";
             } else {
-                btnHint.classList.remove('active');
+                btnHint.classList.remove('active', 'magic');
             }
 
             if(pct > 99.5) triggerVictory();
@@ -519,7 +558,7 @@
             const sol = cachedSolData;
             const pct = parseFloat(progressBar.style.width);
 
-            if(pct > 10) {
+            if(pct > 95) {
                 // VARITA MÁGICA - Completa todo
                 for(let i=0; i<sol.length; i+=4) {
                     if(sol[i+3] > 0 && wallMap[i/4] === 0) {
@@ -529,7 +568,7 @@
                 ctx.putImageData(currentData, 0, 0);
                 scheduleSave();
                 queueProgressUpdate();
-            } else {
+            } else if(pct > 90) {
                 // BOMBILLA - Busca zona sin pintar
                 for(let i=0; i<paintablePixels.length; i+=10) {
                     const idx = paintablePixels[i] * 4;
@@ -560,6 +599,32 @@
         function triggerVictory() {
             isVictoryShown = true;
             localStorage.setItem('completed_' + currentLevel.id, 'true');
+            
+            // Animación de transición de líneas a imagen final
+            const w = canvas.width, h = canvas.height;
+            victoryCanvas.width = w;
+            victoryCanvas.height = h;
+            
+            // Dibujar imagen actual con líneas
+            vCtx.drawImage(canvas, 0, 0);
+            
+            // Hacer fade a la imagen sin líneas
+            let opacity = 1;
+            const fadeInterval = setInterval(() => {
+                opacity -= 0.02;
+                if(opacity <= 0) {
+                    clearInterval(fadeInterval);
+                    vCtx.clearRect(0, 0, w, h);
+                    vCtx.drawImage(imgSolucion, 0, 0);
+                } else {
+                    vCtx.globalAlpha = opacity;
+                    vCtx.drawImage(canvas, 0, 0);
+                    vCtx.globalAlpha = 1 - opacity;
+                    vCtx.drawImage(imgSolucion, 0, 0);
+                    vCtx.globalAlpha = 1;
+                }
+            }, 30);
+            
             confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
             setTimeout(() => { victoryModal.classList.remove('hidden'); }, 800);
         }
@@ -576,13 +641,34 @@
                 if ((r*0.299 + g*0.587 + b*0.114) > 186) btn.classList.add('light');
                 btn.innerHTML = `<span class="color-number">${i + 1}</span>`;
                 if(i === 0) btn.classList.add('selected');
+                
+                let tapTimer = null;
+                let isDragging = false;
+                
                 const selectMe = (e) => {
+                    if(isDragging) return;
                     e.preventDefault(); e.stopPropagation();
                     document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('selected'));
                     btn.classList.add('selected');
                     selectedColorIndex = i;
                 };
-                btn.addEventListener('touchstart', selectMe, {passive:false});
+                
+                btn.addEventListener('touchstart', (e) => {
+                    isDragging = false;
+                    tapTimer = setTimeout(() => { isDragging = false; }, 200);
+                }, {passive:true});
+                
+                btn.addEventListener('touchmove', (e) => {
+                    isDragging = true;
+                    clearTimeout(tapTimer);
+                }, {passive:true});
+                
+                btn.addEventListener('touchend', (e) => {
+                    clearTimeout(tapTimer);
+                    if(!isDragging) selectMe(e);
+                    isDragging = false;
+                }, {passive:false});
+                
                 btn.onclick = selectMe;
                 paletaDiv.appendChild(btn);
             });
@@ -706,7 +792,7 @@
             const dat = vis.data;
             const sol = cachedSolData;
 
-            const q = new Int32Array(w * h * 2); // Pre-allocar array fijo (más rápido)
+            const q = new Int32Array(w * h * 2);
             let qStart = 0, qEnd = 0;
             
             q[qEnd++] = sx;
@@ -726,7 +812,6 @@
                 if(Math.abs(sol[i]-tr)<=1 && Math.abs(sol[i+1]-tg)<=1 && Math.abs(sol[i+2]-tb)<=1) {
                     dat[i]=tr; dat[i+1]=tg; dat[i+2]=tb; dat[i+3]=255;
                     
-                    // Añadir vecinos inline (más rápido que push)
                     if(cx+1<w) { q[qEnd++] = cx+1; q[qEnd++] = cy; }
                     if(cx-1>=0) { q[qEnd++] = cx-1; q[qEnd++] = cy; }
                     if(cy+1<h) { q[qEnd++] = cx; q[qEnd++] = cy+1; }
@@ -739,4 +824,3 @@
     </script>
 </body>
 </html>
-
