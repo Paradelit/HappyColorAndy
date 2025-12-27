@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Para Andy</title>
+    <title>Andy's Happy Color</title>
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -36,6 +36,7 @@
         .gallery-header-block { text-align: center; margin: 30px 0 20px 0; }
         .gallery-title { color: #d63384; font-size: 1.8rem; margin: 0; }
         .gallery-subtitle { color: #666; font-size: 0.9rem; margin-top: 5px; }
+        .app-title-small { color: #999; font-size: 0.75rem; margin-top: 3px; font-weight: normal; }
         .gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; width: 100%; }
         .gallery-item {
             background: white; border-radius: 15px; overflow: hidden;
@@ -76,15 +77,17 @@
         
         #btn-hint { background: #fff3cd; color: #856404; display: none; position: relative; }
         #btn-hint.active { display: flex; animation: popIn 0.3s; }
-        #btn-hint.magic { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
         
-        .hint-badge {
-            position: absolute; top: -5px; right: -5px;
-            background: #667eea; color: white; border-radius: 50%;
-            width: 18px; height: 18px; font-size: 10px;
-            display: flex; justify-content: center; align-items: center;
-            font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        #btn-magic {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border: none; border-radius: 50%;
+            width: 35px; height: 35px; font-size: 18px; cursor: pointer;
+            display: none; justify-content: center; align-items: center;
+            transition: all 0.2s ease; position: relative;
         }
+        #btn-magic.active { display: flex; animation: popIn 0.3s; }
+        #btn-magic:hover { transform: scale(1.1); }
+        #btn-magic:active { transform: scale(0.95); }
 
         #progress-container { width: 100%; height: 4px; background: #e0e0e0; position: relative; z-index: 450; }
         #progress-bar { height: 100%; background: #d63384; width: 0%; transition: width 0.3s ease; }
@@ -135,13 +138,21 @@
             max-width: 90%; overflow: hidden;
         }
         .victory-content h2 { color: #d63384; margin: 0 0 10px 0; }
-        .victory-content p { color: #555; margin: 0 0 20px 0; }
+        .victory-content p { color: #555; margin: 0 0 10px 0; }
+        
+        .victory-memory-title {
+            color: #d63384;
+            font-size: 1.3rem;
+            margin: 10px 0 20px 0;
+            font-weight: 600;
+            text-align: center;
+        }
         
         #victory-canvas {
-            max-width: 100%; max-height: 60vh; border-radius: 10px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-            border: 15px solid #8B7355; 
-            border-image: repeating-linear-gradient(45deg, #8B7355, #8B7355 10px, #A0826D 10px, #A0826D 20px) 15;
+            max-width: 100%; max-height: 60vh; border-radius: 12px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4), 0 5px 15px rgba(0,0,0,0.2);
+            border: 20px solid #1a1a1a;
+            background: #1a1a1a;
             margin: 20px auto;
             animation: fadeInFrame 1s ease forwards;
             opacity: 0;
@@ -155,7 +166,7 @@
         .victory-btn { 
             background: #d63384; color: white; border: none; padding: 10px 25px; 
             font-size: 1rem; border-radius: 25px; cursor: pointer; 
-            transition: all 0.2s ease;
+            transition: all 0.2s ease; margin-top: 20px;
         }
         .victory-btn:hover { background: #b82872; transform: scale(1.05); }
         .victory-btn:active { transform: scale(0.95); }
@@ -180,6 +191,7 @@
         <div class="gallery-content">
             <div class="gallery-header-block">
                 <h1 class="gallery-title">🎨 Recuerdos</h1>
+                <div class="app-title-small">Andy's Happy Color: Color by Number</div>
                 <div class="gallery-subtitle" id="gallery-counter">Completados: 0/2</div>
             </div>
             <div class="gallery-grid" id="gallery-grid"></div>
@@ -191,7 +203,8 @@
             <button id="btn-back" class="icon-btn" title="Volver">⬅️</button>
             <h1>Foto</h1>
             <div class="header-btns">
-                <button id="btn-hint" class="icon-btn" title="Ayuda mágica">💡</button>
+                <button id="btn-hint" class="icon-btn" title="Ayuda - Buscar zona">💡</button>
+                <button id="btn-magic" class="icon-btn" title="Varita mágica - Completar">✨</button>
                 <button id="btn-download" class="icon-btn" title="Descargar imagen">💾</button>
                 <button id="btn-reset" class="icon-btn" title="Borrar">🗑️</button>
                 <button id="btn-solucion" class="icon-btn" title="Ver">👁️</button>
@@ -217,6 +230,7 @@
         <div class="victory-content">
             <h2>¡Felicidades! 🎉</h2>
             <p>Has completado este recuerdo.</p>
+            <div class="victory-memory-title" id="victory-title"></div>
             <canvas id="victory-canvas"></canvas>
             <button class="victory-btn" onclick="cerrarVictoria()">¡Genial!</button>
         </div>
@@ -230,6 +244,7 @@
             {
                 id: 'foto1',
                 nombre: 'Recuerdo 1',
+                nombreCompleto: "Pandy's Grad",
                 lineas: 'lineas1.png', 
                 solucion: 'solucion1.png',
                 colores: [
@@ -248,6 +263,7 @@
             {
                 id: 'foto2',
                 nombre: 'Recuerdo 2',
+                nombreCompleto: 'Stardew Lavander',
                 lineas: 'lineas2.png',
                 solucion: 'solucion2.png',
                 colores: [
@@ -312,6 +328,7 @@
         const progressBar = document.getElementById('progress-bar');
         const victoryModal = document.getElementById('victory-modal');
         const btnHint = document.getElementById('btn-hint');
+        const btnMagic = document.getElementById('btn-magic');
         const galleryCounter = document.getElementById('gallery-counter');
         const loadingOverlay = document.getElementById('loading-overlay');
         const canvas = document.getElementById('lienzo');
@@ -412,7 +429,7 @@
             galleryScreen.classList.add('hidden'); gameScreen.classList.remove('hidden');
             loadingOverlay.classList.remove('hidden');
             
-            isVictoryShown = false; progressBar.style.width = '0%'; btnHint.className = 'icon-btn'; 
+            isVictoryShown = false; progressBar.style.width = '0%'; btnHint.className = 'icon-btn'; btnMagic.className = 'icon-btn';
             loadedCount = 0; ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             // Usar cache
@@ -492,7 +509,6 @@
         function scheduleSave() {
             clearTimeout(saveTimeout);
             const totalPixels = canvas.width * canvas.height;
-            // Delay más largo para imágenes grandes (toDataURL es costoso)
             const delay = totalPixels > 50_000_000 ? 1500 : 800;
             
             saveTimeout = setTimeout(() => {
@@ -521,7 +537,7 @@
             // 🚀 Muestreo MUY agresivo para imágenes grandes
             const totalPixels = canvas.width * canvas.height;
             let step;
-            if (totalPixels > 50_000_000) step = 50;      // foto2: 64M píxeles
+            if (totalPixels > 50_000_000) step = 50;
             else if (totalPixels > 20_000_000) step = 30;
             else if (totalPixels > 10_000_000) step = 20;
             else step = 10;
@@ -536,94 +552,84 @@
             const pct = (ok / Math.ceil(paintablePixels.length / step)) * 100;
             progressBar.style.width = pct + '%';
 
-            // Actualizar botones de ayuda
-            if(pct > 95) {
-                btnHint.classList.add('active', 'magic');
-                btnHint.innerHTML = "✨<span class='hint-badge'>💡</span>";
-            } else if (pct > 90) {
+            // Actualizar botones de ayuda - mantener ambos cuando llegue a 95%
+            if(pct > 10) {
+                btnMagic.classList.add('active');
                 btnHint.classList.add('active');
-                btnHint.classList.remove('magic');
-                btnHint.innerHTML = "💡";
+            } else if (pct > 5) {
+                btnHint.classList.add('active');
+                btnMagic.classList.remove('active');
             } else {
-                btnHint.classList.remove('active', 'magic');
+                btnHint.classList.remove('active');
+                btnMagic.classList.remove('active');
             }
 
             if(pct > 99.5) triggerVictory();
         }
 
         btnHint.onclick = () => {
+            // BOMBILLA - Busca zona sin pintar
             const w = canvas.width, h = canvas.height;
             const currentData = ctx.getImageData(0,0,w,h); 
             const dat = currentData.data;
             const sol = cachedSolData;
-            const pct = parseFloat(progressBar.style.width);
 
-            if(pct > 95) {
-                // VARITA MÁGICA - Completa todo
-                for(let i=0; i<sol.length; i+=4) {
-                    if(sol[i+3] > 0 && wallMap[i/4] === 0) {
-                        dat[i] = sol[i]; dat[i+1] = sol[i+1]; dat[i+2] = sol[i+2]; dat[i+3] = 255;
+            for(let i=0; i<paintablePixels.length; i+=10) {
+                const idx = paintablePixels[i] * 4;
+                if(Math.abs(dat[idx]-sol[idx])>2 || Math.abs(dat[idx+1]-sol[idx+1])>2) {
+                    const y = Math.floor(paintablePixels[i] / w);
+                    const x = paintablePixels[i] % w;
+                    
+                    let best=-1, minD=999999;
+                    coloresRGB.forEach((c, cidx) => {
+                        const d = Math.abs(sol[idx]-c.r) + Math.abs(sol[idx+1]-c.g) + Math.abs(sol[idx+2]-c.b);
+                        if(d < minD) { minD=d; best=cidx; }
+                    });
+                    
+                    if(best !== -1) {
+                        fillArea(x, y, coloresRGB[best]);
+                        scheduleSave();
+                        queueProgressUpdate();
+                        pX = (viewport.clientWidth/2) - (x * scale);
+                        pY = (viewport.clientHeight/2) - (y * scale);
+                        updateTransform();
                     }
-                }
-                ctx.putImageData(currentData, 0, 0);
-                scheduleSave();
-                queueProgressUpdate();
-            } else if(pct > 90) {
-                // BOMBILLA - Busca zona sin pintar
-                for(let i=0; i<paintablePixels.length; i+=10) {
-                    const idx = paintablePixels[i] * 4;
-                    if(Math.abs(dat[idx]-sol[idx])>2 || Math.abs(dat[idx+1]-sol[idx+1])>2) {
-                        const y = Math.floor(paintablePixels[i] / w);
-                        const x = paintablePixels[i] % w;
-                        
-                        let best=-1, minD=999999;
-                        coloresRGB.forEach((c, cidx) => {
-                            const d = Math.abs(sol[idx]-c.r) + Math.abs(sol[idx+1]-c.g) + Math.abs(sol[idx+2]-c.b);
-                            if(d < minD) { minD=d; best=cidx; }
-                        });
-                        
-                        if(best !== -1) {
-                            fillArea(x, y, coloresRGB[best]);
-                            scheduleSave();
-                            queueProgressUpdate();
-                            pX = (viewport.clientWidth/2) - (x * scale);
-                            pY = (viewport.clientHeight/2) - (y * scale);
-                            updateTransform();
-                        }
-                        break;
-                    }
+                    break;
                 }
             }
+        };
+
+        btnMagic.onclick = () => {
+            // VARITA MÁGICA - Completa todo
+            const w = canvas.width, h = canvas.height;
+            const currentData = ctx.getImageData(0,0,w,h); 
+            const dat = currentData.data;
+            const sol = cachedSolData;
+
+            for(let i=0; i<sol.length; i+=4) {
+                if(sol[i+3] > 0 && wallMap[i/4] === 0) {
+                    dat[i] = sol[i]; dat[i+1] = sol[i+1]; dat[i+2] = sol[i+2]; dat[i+3] = 255;
+                }
+            }
+            ctx.putImageData(currentData, 0, 0);
+            scheduleSave();
+            queueProgressUpdate();
         };
 
         function triggerVictory() {
             isVictoryShown = true;
             localStorage.setItem('completed_' + currentLevel.id, 'true');
             
-            // Animación de transición de líneas a imagen final
-            const w = canvas.width, h = canvas.height;
+            // Mostrar el nombre completo del recuerdo
+            document.getElementById('victory-title').innerText = currentLevel.nombreCompleto;
+            
+            // Dibujar directamente la imagen solución sin líneas
+            const w = imgSolucion.width, h = imgSolucion.height;
             victoryCanvas.width = w;
             victoryCanvas.height = h;
             
-            // Dibujar imagen actual con líneas
-            vCtx.drawImage(canvas, 0, 0);
-            
-            // Hacer fade a la imagen sin líneas
-            let opacity = 1;
-            const fadeInterval = setInterval(() => {
-                opacity -= 0.02;
-                if(opacity <= 0) {
-                    clearInterval(fadeInterval);
-                    vCtx.clearRect(0, 0, w, h);
-                    vCtx.drawImage(imgSolucion, 0, 0);
-                } else {
-                    vCtx.globalAlpha = opacity;
-                    vCtx.drawImage(canvas, 0, 0);
-                    vCtx.globalAlpha = 1 - opacity;
-                    vCtx.drawImage(imgSolucion, 0, 0);
-                    vCtx.globalAlpha = 1;
-                }
-            }, 30);
+            // Dibujar la imagen solución limpia
+            vCtx.drawImage(imgSolucion, 0, 0);
             
             confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
             setTimeout(() => { victoryModal.classList.remove('hidden'); }, 800);
