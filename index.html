@@ -519,7 +519,7 @@
             const sol = cachedSolData;
             const pct = parseFloat(progressBar.style.width);
 
-            if(pct > 95) {
+            if(pct > 10) {
                 // VARITA MÁGICA - Completa todo
                 for(let i=0; i<sol.length; i+=4) {
                     if(sol[i+3] > 0 && wallMap[i/4] === 0) {
@@ -739,3 +739,4 @@
     </script>
 </body>
 </html>
+
